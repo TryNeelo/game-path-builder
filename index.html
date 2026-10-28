@@ -1,0 +1,1297 @@
+<meta charset="utf-8">
+<title>Build the Path</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@800&display=swap">
+<style>
+/* Layout: one-screen game. Board (one 6×4 section plus a peek margin) beside a piece tray; coins and the star row on top. */
+:root {
+  color-scheme: light;
+  --sky: #CDEEF7;
+  --water: #A9DCEB;
+  --grass-a: #C4E7A8;
+  --forest: #8CC66F;
+  --pond: #74C9EA;
+  --grass-edge: #79B65C;
+  --road: #F8E6BB;
+  --road-edge: #D79A55;
+  --road-dash: #FFF8E4;
+  --ink: #2A2148;
+  --panel: #FFF8EC;
+  --panel-edge: #EBCB97;
+  --pink: #FF60CF;
+  --gold: #FFC200;
+  --white: #FFFFFF;
+  --cloud: #E6F1F7;
+  --display: "Lilita One", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
+  --ui: "Nunito", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --c: 140px;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--sky);
+  color: var(--ink);
+  overflow: hidden;
+  touch-action: none;
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family: var(--ui);
+}
+img { -webkit-user-drag: none; pointer-events: none; }
+#app {
+  position: fixed; inset: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: max(10px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(ellipse 30% 14% at 12% 92%, #FFFFFF99 0 60%, transparent 61%),
+    radial-gradient(ellipse 22% 10% at 88% 8%, #FFFFFF88 0 60%, transparent 61%),
+    var(--sky);
+}
+#stage { position: relative; width: 100%; height: 100%; }
+
+/* ---------- top bar ---------- */
+#coins {
+  position: absolute; left: 0; top: 18px; height: 56px;
+  display: flex; align-items: center; gap: 8px; padding: 0 18px 0 8px;
+  background: var(--panel); border: 3px solid var(--white); border-radius: 30px;
+  box-shadow: 0 4px 0 #0000001a;
+  font-family: var(--display); font-size: 30px; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+#coins img { width: 40px; height: 40px; }
+#coins.pop { animation: pop .45s cubic-bezier(.3,1.8,.5,1); }
+/* One star per section: full colour once reached, the current one pulsing, the rest still to come.
+   It sits centred on the board's bottom edge (placed in layout()). */
+#stars {
+  position: absolute; z-index: 6; transform: translate(-50%, -50%); height: calc(var(--c) * .4);
+  display: flex; align-items: center; gap: calc(var(--c) * .06); padding: 0 calc(var(--c) * .16);
+  background: var(--panel); border: 3px solid var(--white); border-radius: 999px;
+  box-shadow: 0 4px 0 #0000001a; pointer-events: none;
+}
+#stars img { width: calc(var(--c) * .19); height: calc(var(--c) * .19); display: block; filter: grayscale(1) brightness(1.35); opacity: .4; transition: filter .3s, opacity .3s; }
+#stars img.done { filter: none; opacity: 1; }
+#stars img.now { filter: none; opacity: 1; animation: ready 1.4s ease-in-out infinite; }
+#stars img.pop { animation: pop .45s cubic-bezier(.3,1.8,.5,1); }
+#music {
+  position: absolute; right: 0; top: 14px; width: 60px; height: 60px;
+  border-radius: 50%; border: 3px solid var(--white); background: var(--panel);
+  box-shadow: 0 4px 0 #0000001a; display: grid; place-items: center; cursor: pointer; padding: 0;
+}
+#music svg { width: 30px; height: 30px; pointer-events: none; }
+#music .slash { display: none; }
+#music.off .slash { display: inline; }
+#music:focus-visible, .btn:focus-visible { outline: 4px solid var(--pink); outline-offset: 3px; }
+
+/* ---------- board ---------- */
+#board {
+  position: absolute; overflow: hidden;
+  background:
+    radial-gradient(circle at 25% 30%, #FFFFFF33 0 2px, transparent 3px) 0 0 / 34px 34px,
+    var(--water);
+  border: 5px solid var(--white);
+  border-radius: calc(var(--c) * .22);
+  box-shadow: 0 8px 0 #2A214822, 0 18px 40px #2A214826;
+}
+#world { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+#world.panning { transition: transform 1.15s cubic-bezier(.65,0,.3,1); }
+.at {
+  position: absolute; left: 0; top: 0;
+  width: var(--c); height: var(--c);
+  transform: translate(calc(var(--x) * var(--c)), calc(var(--y) * var(--c)));
+  display: grid; place-items: center;
+}
+.plate {
+  position: absolute; left: 0; top: 0;
+  transform: translate(calc(var(--x) * var(--c) - 6px), calc(var(--y) * var(--c) - 6px));
+  width: calc(var(--w) * var(--c) + 12px); height: calc(var(--h) * var(--c) + 12px);
+  background: var(--grass-edge); border-radius: calc(var(--c) * .2);
+  box-shadow: 0 6px 0 #4E8B3A55;
+}
+.cell::before {
+  content: ""; position: absolute; inset: 3px; border-radius: 18%;
+  background: var(--grass-a); box-shadow: inset 0 -5px 0 #00000010;
+}
+.cell.block::before { background: var(--forest); box-shadow: inset 0 -5px 0 #00000014; }
+.cell.water::before { inset: 1px; border-radius: 16%; background: var(--pond); box-shadow: inset 0 5px 0 #0000001a; }
+.deco { z-index: 2; pointer-events: auto; }
+.deco svg { width: calc(var(--c) * .92); height: calc(var(--c) * .92); transform-origin: 50% 85%; }
+.deco.wobble svg { animation: wobble .4s ease-in-out; }
+.cell.hi::after {
+  content: ""; position: absolute; inset: 6px; border-radius: 18%;
+  border: 4px dashed var(--white); background: #FFFFFF40;
+}
+.glow::after {
+  content: ""; position: absolute; inset: 5px; border-radius: 18%;
+  border: 5px dashed var(--pink); animation: gap .7s ease-in-out 4 alternate;
+}
+.tile { z-index: 2; cursor: pointer; }
+.tile .rot, .float .rot, .slot .rot { width: 100%; height: 100%; transform: rotate(var(--rot, 0deg)); transition: transform .3s cubic-bezier(.3,1.7,.5,1); }
+.tile.dropped .rot { animation: drop .32s cubic-bezier(.3,1.8,.5,1); }
+.tile.lifting { opacity: .25; }
+.road { width: 100%; height: 100%; display: block; overflow: visible; }
+.road .re { stroke: var(--road-edge); }
+.road .rf { stroke: var(--road); }
+.road .rd { stroke: var(--road-dash); }
+.item { z-index: 3; pointer-events: none; }
+.target { pointer-events: auto; cursor: pointer; }
+.item img, .item svg { display: block; }
+.coin img { width: calc(var(--c) * .5); height: calc(var(--c) * .5); }
+.coin { width: calc(var(--c) * .58); height: calc(var(--c) * .58); display: grid; place-items: center; border-radius: 50%; }
+.coin img { animation: shine 2.4s ease-in-out infinite; }
+.pickup .pk { width: calc(var(--c) * .62); height: calc(var(--c) * .62); margin-top: -12%; transform-origin: 50% 100%;
+  filter: drop-shadow(0 0 8px #FF60CF99); animation: boingidle 3.2s ease-in-out infinite; }
+.pickup svg, .flyspring svg { width: 100%; height: 100%; display: block; }
+.flyspring { position: absolute; left: 0; top: 0; width: 64px; height: 64px; margin: -32px 0 0 -32px; }
+.bat .bb { position: relative; width: calc(var(--c) * .8); height: calc(var(--c) * .8); transition: scale .25s, translate .25s; }
+.bat .bb img { width: 100%; height: 100%; }
+.bat .pouch { position: absolute; right: -6%; bottom: -2%; width: 46%; }
+.bat .pouch svg { width: 100%; display: block; }
+.bat.wobble .bb { animation: wobble .5s ease-in-out 2; }
+.bat.perch .bb, .deco.perch svg { scale: .64; translate: 0 -24%; }
+.deco svg { transition: scale .25s, translate .25s; }
+.tile.spent .rot { filter: saturate(.45); }
+.tile.nope { animation: nope .3s ease-in-out; }
+.cell.can::after {
+  content: ""; position: absolute; inset: 5px; border-radius: 18%;
+  border: 5px dashed var(--pink); animation: gap .5s ease-in-out infinite alternate;
+}
+#char .bob.spring { animation: springhop var(--hop, .6s) cubic-bezier(.3,.1,.4,1); }
+.star img { width: calc(var(--c) * .82); height: calc(var(--c) * .82); animation: twinkle 3s ease-in-out infinite; }
+.star.ready img { animation: ready 1s ease-in-out infinite; }
+.star.won img { animation: spinwin 1.1s cubic-bezier(.3,1.4,.5,1) forwards; }
+.flag svg { width: calc(var(--c) * .72); height: calc(var(--c) * .72); }
+.pad svg { width: calc(var(--c) * .8); height: calc(var(--c) * .8); }
+#char { z-index: 4; transition: transform var(--walk, .26s) linear; pointer-events: none; }
+.still #char, .still .rot { transition: none !important; }
+#char .bob { width: calc(var(--c) * .8); height: calc(var(--c) * .8); }
+#char img { width: 100%; height: 100%; filter: drop-shadow(0 5px 0 #2A214833); }
+#char .bob.hop { animation: hop .26s ease-out; }
+#char .bob.jump { animation: jump .8s cubic-bezier(.3,1.4,.5,1) 2; }
+.bubble {
+  z-index: 6; pointer-events: none;
+}
+.bubble span {
+  --bx: 0; --by: -.62;
+  transform: translate(calc(var(--bx) * var(--c)), calc(var(--by) * var(--c)));
+  font-family: var(--display); font-size: calc(var(--c) * .26); line-height: 1;
+  color: var(--ink); background: var(--white);
+  padding: .22em .45em .18em; border-radius: .6em;
+  box-shadow: 0 4px 0 #2A214826;
+  animation: bubble 1.6s cubic-bezier(.3,1.7,.5,1) forwards;
+  white-space: nowrap;
+}
+.bubble.q span { font-size: calc(var(--c) * .36); color: var(--pink); }
+.spot { z-index: 1; pointer-events: none; }
+.spot::before {
+  content: ""; width: calc(var(--c) * 1.1); height: calc(var(--c) * 1.1); border-radius: 50%;
+  border: 6px solid var(--white); animation: spot .9s ease-out 2;
+}
+.spot.small::before { width: calc(var(--c) * .8); height: calc(var(--c) * .8); border: 5px solid var(--pink); }
+#fog {
+  position: absolute; z-index: 5; pointer-events: none;
+  border-radius: calc(var(--c) * .14);
+  box-shadow: 0 0 0 2000px #CDEEF7A6;
+}
+#edge {
+  position: absolute; z-index: 5; pointer-events: none;
+  width: calc(var(--c) * .3); height: calc(var(--c) * .3);
+  transform: translate(-50%, -50%) rotate(var(--dir));
+}
+#edge svg { width: 100%; height: 100%; animation: nudge 1s ease-in-out infinite; }
+
+/* ---------- tray ---------- */
+#tray {
+  position: absolute; display: flex; align-items: center; justify-content: center;
+  gap: calc(var(--c) * .22);
+  background: var(--panel); border: 5px solid var(--white); border-radius: calc(var(--c) * .22);
+  box-shadow: 0 8px 0 #2A214822;
+  transition: background .2s, box-shadow .2s;
+}
+#tray.col { flex-direction: column; }
+#tray.bin { background: #FFE6F6; box-shadow: 0 8px 0 #2A214822, 0 0 0 6px #FF60CF66; }
+.slot {
+  position: relative; width: calc(var(--c) * 1.12); height: calc(var(--c) * 1.12);
+  border-radius: calc(var(--c) * .2); background: var(--grass-a);
+  box-shadow: inset 0 -6px 0 #00000014, 0 0 0 3px var(--panel-edge);
+  cursor: grab; padding: calc(var(--c) * .06); border: 0;
+}
+.slot .rot { pointer-events: none; }
+.slot.locked { background: #D9D2C6; cursor: default; }
+.slot.locked .rot { opacity: .2; filter: grayscale(1); }
+.slot .lock { position: absolute; inset: 0; display: none; place-items: center; pointer-events: none; }
+.slot.locked .lock { display: grid; }
+.slot .lock svg { width: 42%; height: 42%; }
+.slot.unlock { animation: pop .6s cubic-bezier(.3,1.8,.5,1); }
+.slot .count {
+  position: absolute; top: -10px; right: -10px; min-width: 40px; height: 40px; padding: 0 8px;
+  display: grid; place-items: center; pointer-events: none;
+  font-family: var(--display); font-size: 22px; line-height: 1; color: var(--white);
+  background: var(--pink); border: 3px solid var(--white); border-radius: 20px;
+}
+.slot.locked .count { display: none; }
+.slot.empty { cursor: default; }
+.slot.empty .rot { opacity: .3; filter: grayscale(1); }
+.slot.empty .count { background: #A9A3B8; }
+.slot.nope { animation: nope .3s ease-in-out; }
+
+/* ---------- fx layer ---------- */
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+.float, .ghost {
+  position: absolute; left: 0; top: 0; width: var(--c); height: var(--c);
+  filter: drop-shadow(0 12px 10px #2A214840);
+}
+.ghost { opacity: 0; filter: none; }
+.float.back { transition: transform .3s cubic-bezier(.3,1.4,.5,1), opacity .3s; }
+.hand { position: absolute; left: 0; top: 0; width: calc(var(--c) * .62); opacity: 0; filter: drop-shadow(0 6px 6px #2A214840); }
+.hand svg { width: 100%; height: auto; display: block; }
+.ripple { position: absolute; left: 0; top: 0; width: 70px; height: 70px; margin: -35px 0 0 -35px; border-radius: 50%; border: 5px solid var(--white); opacity: 0; }
+.puff { position: absolute; left: 0; top: 0; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: var(--white); }
+.confetti { position: absolute; left: 0; top: 0; width: 14px; height: 9px; border-radius: 3px; }
+.flycoin { position: absolute; left: 0; top: 0; width: 50px; height: 50px; margin: -25px 0 0 -25px; }
+
+/* ---------- overlays ---------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 80; display: grid; place-items: center;
+  background: #2A214866; padding: 24px;
+}
+.card {
+  background: var(--panel); border: 6px solid var(--white); border-radius: 36px;
+  box-shadow: 0 10px 0 #2A214833; padding: 32px 40px 36px;
+  display: grid; justify-items: center; gap: 14px; text-align: center; max-width: 560px;
+}
+.card h1, .card h2 { margin: 0; font-family: var(--display); font-weight: 400; color: var(--ink); text-wrap: balance; line-height: 1; }
+.card h1 { font-size: clamp(44px, 8vw, 76px); letter-spacing: .01em; }
+.card h2 { font-size: clamp(34px, 6vw, 54px); }
+.card p { margin: 0; font-size: 20px; color: #5A5078; }
+.hero { display: flex; align-items: flex-end; gap: 10px; }
+.hero img { width: 120px; height: 120px; }
+.hero img:nth-child(1) { animation: hop 1.2s ease-in-out infinite; }
+.hero img:nth-child(2) { width: 70px; height: 70px; margin-bottom: 12px; }
+.hero img:nth-child(3) { width: 96px; height: 96px; animation: twinkle 3s ease-in-out infinite; }
+.btn {
+  font-family: var(--display); font-size: 34px; color: var(--white); cursor: pointer;
+  background: var(--pink); border: 0; border-radius: 999px; padding: 14px 52px 12px;
+  box-shadow: 0 7px 0 #C2399C; margin-top: 8px;
+}
+.btn:active { transform: translateY(4px); box-shadow: 0 3px 0 #C2399C; }
+
+@keyframes pop { 0% { transform: scale(.6); } 100% { transform: scale(1); } }
+@keyframes drop { 0% { transform: rotate(var(--rot)) scale(.75); } 100% { transform: rotate(var(--rot)) scale(1); } }
+@keyframes ring { 0% { opacity: 1; transform: scale(.9); } 100% { opacity: 0; transform: scale(1.15); } }
+@keyframes gap { from { opacity: .25; } to { opacity: 1; } }
+@keyframes shine { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg) scale(1.05); } }
+@keyframes wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-16deg); } 75% { transform: rotate(16deg); } }
+@keyframes twinkle { 0%, 100% { transform: rotate(0) scale(1); } 50% { transform: rotate(10deg) scale(1.04); } }
+@keyframes ready { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 #FF60CF); } 50% { transform: scale(1.12); filter: drop-shadow(0 0 14px #FF60CF); } }
+@keyframes spinwin { 0% { transform: scale(1) rotate(0); } 60% { transform: scale(1.5) rotate(300deg); } 100% { transform: scale(0) rotate(360deg); } }
+@keyframes hop { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-14%); } }
+@keyframes jump { 0%, 100% { transform: translateY(0) scale(1); } 40% { transform: translateY(-34%) scale(1.06); } }
+@keyframes bubble {
+  0% { opacity: 0; transform: translate(calc(var(--bx) * var(--c)), calc((var(--by) + .2) * var(--c))) scale(.4); }
+  15%, 80% { opacity: 1; transform: translate(calc(var(--bx) * var(--c)), calc(var(--by) * var(--c))) scale(1); }
+  100% { opacity: 0; transform: translate(calc(var(--bx) * var(--c)), calc((var(--by) - .08) * var(--c))) scale(1); }
+}
+@keyframes spot { 0% { opacity: 1; transform: scale(1.6); } 100% { opacity: 0; transform: scale(.7); } }
+@keyframes nudge { 0%, 100% { transform: translateX(-12%); } 50% { transform: translateX(14%); } }
+@keyframes nope { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+@keyframes boingidle {
+  0%, 62%, 100% { transform: translateY(0) scale(1, 1); }
+  68% { transform: translateY(0) scale(1.14, .78); }
+  78% { transform: translateY(-34%) scale(.9, 1.12); }
+  88% { transform: translateY(0) scale(1.08, .9); }
+  94% { transform: translateY(-6%) scale(1, 1); }
+}
+@keyframes springhop {
+  0% { transform: translateY(0) scale(1, 1); }
+  10% { transform: translateY(0) scale(1.12, .82); }
+  50% { transform: translateY(-95%) scale(.95, 1.08); }
+  92% { transform: translateY(0) scale(1.08, .9); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #world.panning { transition-duration: .4s; }
+  .coin img, .star img, #edge svg, .hero img, .pickup .pk { animation: none !important; }
+}
+</style>
+
+<div id="app">
+  <div id="stage">
+    <div id="coins" hidden><img src="assets/Coin.svg" alt=""><span id="coinN">0</span></div>
+    <div id="stars" role="img"></div>
+    <button id="music" data-act="music" aria-label="Music on or off">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 24V7l14-3v17" fill="none" stroke="#2A2148" stroke-width="3" stroke-linejoin="round"/><circle cx="8.5" cy="24" r="4" fill="#2A2148"/><circle cx="22.5" cy="21" r="4" fill="#2A2148"/><path class="slash" d="M4 4l24 24" stroke="#FF60CF" stroke-width="4" stroke-linecap="round"/></svg>
+    </button>
+    <div id="board"><div id="world"></div><div id="fog"></div><div id="edge"><svg viewBox="0 0 40 40"><path d="M12 6l16 14-16 14" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 6l16 14-16 14" fill="none" stroke="#2A2148" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+    <div id="tray">
+      <button class="slot" data-act="tray" data-piece="s" aria-label="Straight piece"></button>
+      <button class="slot locked" data-act="tray" data-piece="c" aria-label="Corner piece"><span class="lock"><svg viewBox="0 0 40 40"><rect x="7" y="17" width="26" height="19" rx="5" fill="#2A2148"/><path d="M13 17v-5a7 7 0 0 1 14 0v5" fill="none" stroke="#2A2148" stroke-width="5"/></svg></span></button>
+      <button class="slot locked" data-act="tray" data-piece="p" aria-label="Spring piece"><span class="lock"><svg viewBox="0 0 40 40"><rect x="7" y="17" width="26" height="19" rx="5" fill="#2A2148"/><path d="M13 17v-5a7 7 0 0 1 14 0v5" fill="none" stroke="#2A2148" stroke-width="5"/></svg></span><span class="count"></span></button>
+    </div>
+  </div>
+</div>
+<div id="fx"></div>
+
+<div id="title" class="overlay">
+  <div class="card">
+    <div class="hero"><img src="assets/Character.svg" alt=""><img src="assets/Coin.svg" alt=""><img src="assets/Star.svg" alt=""></div>
+    <h1>Build the Path</h1>
+    <p>Lay the road. Tap the star. Watch out for bats!</p>
+    <button class="btn" data-act="play">Play</button>
+  </div>
+</div>
+<div id="end" class="overlay" hidden>
+  <div class="card">
+    <div class="hero"><img src="assets/Character.svg" alt=""><img src="assets/Coin.svg" alt=""><img src="assets/Star.svg" alt=""></div>
+    <h2>You built the whole path!</h2>
+    <p id="endCoins"></p>
+    <button class="btn" data-act="again">Play again</button>
+  </div>
+</div>
+
+<script>
+/* ================= world data =================
+   Each section is 6×4. Map key: . meadow (buildable)  T tree  R rock  W pond (blocked)
+   B bat (only a spring goes here)  P pouch bat (+3 coins when sprung over)  C coin  S spring on a stepping stone
+   @ start  * star. Tap a spring stone to walk there and pick it up; unused springs stay in the tray for later sections.
+   Pieces: 's' straight, 'c' corner, 'p' spring (a straight that only goes on a bat or rock and hops it).
+   Rotation r = quarter turns clockwise. Straight/spring r0 = left–right. Corner r0 = left+down.
+   Stars sit on the edge facing the next section; the character hops across into it.
+   sol is the route the lessons point at;
+   free-play hints work out a route on the fly. */
+const SECTIONS = [
+  { slot: [0, 0], next: 'E', map: ['TRTTRT', 'WW.@.*', 'WT..TT', 'TTRTTR'],
+    pre: [], sol: [[4, 1, 's', 0]] },
+  { slot: [1, 0], next: 'E', map: ['TRWWTT', '@....*', 'TTWW.T', 'RTTTTR'],
+    pre: [[1, 1, 's', 0], [2, 1, 's', 0], [3, 1, 's', 1], [4, 1, 's', 0]],
+    sol: [[1, 1, 's', 0], [2, 1, 's', 0], [3, 1, 's', 0], [4, 1, 's', 0]] },
+  { slot: [2, 0], next: 'S', map: ['TTTRTT', '@.WWT.', 'T.TWW.', 'R*.TRT'],
+    pre: [[1, 2, 's', 1]], sol: [[1, 1, 'c', 0], [1, 2, 's', 1]] },
+  { slot: [2, 1], next: 'S', map: ['T@TTWW', 'T..TWW', 'TB.RTT', 'R*.TTR'],
+    pre: [[1, 1, 's', 1]],
+    sol: [[1, 1, 'c', 2], [2, 1, 'c', 0], [2, 2, 's', 1], [2, 3, 'c', 1]] },
+  { slot: [2, 2], next: 'W', map: ['T@TRTT', 'W.WTTR', 'TC.WWT', '*.RTTT'],
+    pre: [], sol: [[1, 1, 's', 1], [1, 2, 's', 1], [1, 3, 'c', 1]] },
+  { slot: [1, 2], next: 'N', map: ['TT*TRT', 'TW.WTT', 'TW.TRW', 'RR.PS@'],
+    pre: [], sol: [[3, 3, 'p', 0]] },
+  // Free play: every jump pays. A safe route with no coins, a quick spring over a rock with coins
+  // behind it, and a long way round past a plain bat. Each has one spring stone to tap, to spend or save.
+  // In section 8 the stone sits right before the bat, so she can turn on it and jump; a saved spring opens both jumps.
+  // The finale has none: a saved spring opens the pouch bat, two open the rock and the bat.
+  { slot: [1, 1], next: 'W', map: ['..CCB.', '*..TT.', 'CT.WTC', 'CR@S..'], pre: [], sol: [] },
+  { slot: [0, 1], next: 'S', map: ['CCCBST', '.TT..@', '.WT.TC', '..*.RC'], pre: [], sol: [] },
+  { slot: [0, 2], next: null, map: ['..@.CC', '.TPTTR', '.T.CBC', '..*TT.'], pre: [], sol: [] },
+];
+const SW = 6, SH = 4, M = 0.35;            // section size, peek margin (in cells)
+const STEP = 260;                          // ms per walked square
+const BAT_COST = 40;
+const DV = [[0, -1], [1, 0], [0, 1], [-1, 0]];   // N E S W
+const DIRI = { N: 0, E: 1, S: 2, W: 3 };
+const BASE = { s: [1, 3], c: [2, 3], p: [1, 3] };
+const SPRING_SEC = 5;                      // section where the spring is taught
+const K = (x, y) => x + ',' + y;
+const P = k => k.split(',').map(Number);
+const conns = (type, r) => BASE[type].map(d => (d + r) % 4);
+const sameConns = (a, b) => a.length === b.length && a.every(d => b.includes(d));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const SEC = SECTIONS.map((s, i) => {
+  const ox = s.slot[0] * SW, oy = s.slot[1] * SH;
+  const w = ([x, y, ...rest]) => [ox + x, oy + y, ...rest];
+  let start, star; const bats = [], pouches = [], coins = [], pickups = [], block = [];
+  s.map.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch === '@') start = [x, y]; else if (ch === '*') star = [x, y];
+    else if (ch === 'B') bats.push([x, y]); else if (ch === 'P') { bats.push([x, y]); pouches.push([x, y]); }
+    else if (ch === 'C') coins.push([x, y]); else if (ch === 'S') pickups.push([x, y]);
+    else if ('TRW'.includes(ch)) block.push([x, y, ch]);
+  }));
+  return { ...s, i, ox, oy, start, star, startW: w(start), starW: w(star), batsW: bats.map(w), pouchesW: pouches.map(w),
+    coinsW: coins.map(w), pickupsW: pickups.map(w), blockW: block.map(w), preW: s.pre.map(w), solW: s.sol.map(w) };
+});
+const BATS = new Set(SEC.flatMap(s => s.batsW.map(([x, y]) => K(x, y))));
+const PICKUPS = new Set(SEC.flatMap(s => s.pickupsW.map(([x, y]) => K(x, y))));
+const POUCH = new Set(SEC.flatMap(s => s.pouchesW.map(([x, y]) => K(x, y))));
+const BLOCK = new Map(SEC.flatMap(s => s.blockW.map(([x, y, ch]) => [K(x, y), ch])));
+const COIN_SET = new Set(SEC.flatMap(s => s.coinsW.map(([x, y]) => K(x, y))));
+const COINS_TOTAL = COIN_SET.size + 3 * POUCH.size;
+
+/* ================= sound (all synthesized) ================= */
+const Snd = (() => {
+  let ac, master, mus, sfx, nbuf, on = true, timer = null, step = 0, nextT = 0;
+  const mid = n => 440 * Math.pow(2, (n - 69) / 12);
+  const _ = null;
+  const LEAD = [76,79,84,79,81,79,76,_, 77,81,84,81,79,76,74,_, 76,79,84,79,81,84,86,_, 84,_,79,_,76,_,72,_,
+                69,72,77,72,67,71,74,79, 69,72,76,81,79,77,76,74, 77,76,74,72,74,76,77,79, 84,_,79,76,72,_,_,_];
+  const BASS = [48,43,48,43, 41,48,41,48, 48,43,48,43, 43,50,43,47, 41,48,43,50, 45,52,45,52, 41,43,45,47, 48,43,48,_];
+  const SPB = 60 / 132 / 2;
+  function init() {
+    if (ac) { ac.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ac = new AC();
+    master = ac.createGain(); master.gain.value = 0.9; master.connect(ac.destination);
+    mus = ac.createGain(); mus.gain.value = on ? 0.15 : 0; mus.connect(master);
+    sfx = ac.createGain(); sfx.gain.value = 0.55; sfx.connect(master);
+    nbuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+    const d = nbuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    document.addEventListener('visibilitychange', () => document.hidden ? ac.suspend() : ac.resume());
+  }
+  function tone(f, t, d, type = 'square', v = .3, f2 = null, dest = sfx) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(dest); o.start(t); o.stop(t + d + 0.03);
+  }
+  function noise(t, d, v, f1, f2, q = 1, dest = sfx, type = 'bandpass') {
+    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    s.buffer = nbuf; f.type = type; f.Q.value = q;
+    f.frequency.setValueAtTime(f1, t); f.frequency.exponentialRampToValueAtTime(f2, t + d);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + d * .2);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    s.connect(f); f.connect(g); g.connect(dest); s.start(t); s.stop(t + d + .02);
+  }
+  function schedule() {
+    while (nextT < ac.currentTime + 0.12) {
+      const i = step % 64;
+      if (LEAD[i]) tone(mid(LEAD[i]), nextT, SPB * .9, 'square', .16, null, mus);
+      if (i % 2 === 0 && BASS[i / 2]) tone(mid(BASS[i / 2]), nextT, SPB * 1.8, 'triangle', .45, null, mus);
+      if (i % 2 === 1) noise(nextT, .05, .08, 8000, 7000, .7, mus, 'highpass');
+      nextT += SPB; step++;
+    }
+  }
+  const T = () => ac.currentTime + 0.005;
+  const S = {
+    init,
+    startMusic() { if (!ac || timer) return; nextT = ac.currentTime + .1; timer = setInterval(schedule, 25); },
+    toggle() { on = !on; if (mus) mus.gain.setTargetAtTime(on ? .15 : 0, ac.currentTime, .05); return on; },
+    get on() { return on; },
+  };
+  const fx = {
+    pick() { const t = T(); tone(620, t, .08, 'square', .12, 930); },
+    drop() { const t = T(); tone(190, t, .14, 'sine', .55, 90); tone(880, t + .02, .06, 'square', .07); },
+    spin() { const t = T(); tone(480, t, .12, 'triangle', .35, 960); },
+    whoosh() { const t = T(); noise(t, .4, .45, 3000, 280, .8); },
+    no() { const t = T(); tone(170, t, .09, 'square', .14); tone(130, t + .11, .13, 'square', .14); },
+    step() { const t = T(); tone(300 + Math.random() * 60, t, .05, 'triangle', .14); },
+    coin() { const t = T(); [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, t + i * .055, .12, 'square', .13)); },
+    oops() { const t = T(); tone(420, t, .14, 'square', .18, 260); tone(320, t + .16, .3, 'square', .18, 150);
+             [0, .09, .18].forEach(d => noise(t + d, .07, .3, 900, 500, 2)); },
+    puzzled() { const t = T(); tone(480, t, .1, 'sine', .35, 720); tone(520, t + .15, .16, 'sine', .35, 860); },
+    fanfare() { const t = T(); [72, 76, 79, 84].forEach((n, i) => tone(mid(n), t + i * .1, .14, 'square', .14));
+                [84, 88, 91].forEach(n => tone(mid(n), t + .42, .7, 'square', .09)); tone(mid(48), t + .42, .7, 'triangle', .4); },
+    ping() { const t = T(); tone(1568, t, .3, 'sine', .25); tone(2093, t + .09, .35, 'sine', .2); },
+    unlock() { const t = T(); [84, 88, 91, 96, 100].forEach((n, i) => tone(mid(n), t + i * .06, .2, 'triangle', .3)); },
+    swoosh() { const t = T(); noise(t, .8, .3, 350, 2200, .7); },
+    hop() { const t = T(); tone(380, t, .14, 'sine', .3, 820); },
+    tap() { const t = T(); tone(900, t, .04, 'sine', .15); },
+    bonk() { const t = T(); tone(150, t, .16, 'sine', .6, 70); noise(t, .08, .25, 1200, 600, 1.5); },
+    splash() { const t = T(); noise(t, .32, .35, 1800, 500, 1); tone(600, t, .1, 'sine', .25, 1200); },
+    boing() { const t = T(); tone(180, t, .35, 'triangle', .5, 720); tone(240, t + .05, .3, 'sine', .25, 960); },
+    eek() { const t = T(); tone(1400, t, .08, 'square', .1, 2000); tone(1600, t + .1, .1, 'square', .1, 2400);
+            [0, .07, .14, .21].forEach(d => noise(t + d, .06, .25, 900, 500, 2)); },
+  };
+  for (const k in fx) S[k] = () => { if (ac) try { fx[k](); } catch (e) {} };
+  return S;
+})();
+
+/* ================= state ================= */
+let S;            // game state (serializable)
+let started = false, busy = false;
+let lastAct = performance.now(), lastChange = performance.now();
+let hintTok = 0, hintActive = false, hintAnims = [], hintEls = [];
+let drag = null, press = null;
+let cpx = 140;    // cell size in px
+
+function freshState() {
+  const tiles = {};
+  SEC.forEach(s => s.preW.forEach(([x, y, t, r]) => tiles[K(x, y)] = { type: t, turns: r }));
+  return { sec: 0, tiles, taken: [], flown: [], picked: [], bag: 0, score: 0, char: [...SEC[0].startW], shown: [],
+    oops: false, cornerUnlocked: false, springUnlocked: false, fails: 0, clock: 0 };   // clock: when each piece was last built or turned
+}
+
+/* ================= dom refs ================= */
+const $ = s => document.querySelector(s);
+const stage = $('#stage'), board = $('#board'), world = $('#world'), tray = $('#tray'), fx = $('#fx');
+const coinsEl = $('#coins'), coinN = $('#coinN'), edge = $('#edge');
+const els = { tiles: new Map(), coins: new Map(), pickups: new Map(), bats: new Map(), deco: new Map(), stars: [], cells: new Map(), char: null };
+
+/* ================= art ================= */
+function roadSVG(type) {
+  const d = type === 'c' ? 'M-2 50H0A50 50 0 0 1 50 100V102' : 'M-2 50H102';
+  // The spring is a straight road with a springboard on it; the zigzag runs the way she bounces.
+  const board = type === 'p' ? `<rect x="20" y="24" width="60" height="52" rx="13" fill="#FF8AD8" stroke="#C2399C" stroke-width="4"/>
+    <path d="M27 50l7-13 7 26 7-26 7 26 7-26 7 26 4-13" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+  return `<svg class="road" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+    <path class="re" d="${d}" stroke-width="56"/><path class="rf" d="${d}" stroke-width="42"/>
+    <path class="rd" d="${d}" stroke-width="5" stroke-dasharray="9 11" stroke-linecap="round"/>${board}</svg>`;
+}
+const POUCH_SVG = `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M14 13C6 18 5 36 20 36s14-18 6-23z" fill="#C98A4B" stroke="#7A4A2B" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M13 12c4 2 10 2 14 0" stroke="#7A4A2B" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M16 9l4 3 4-3" stroke="#7A4A2B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <circle cx="20" cy="26" r="6.5" fill="#FFC200" stroke="#FFB000" stroke-width="2"/></svg>`;
+const SPRING_ICON = `<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="16" y="22" width="68" height="56" rx="15" fill="#FF8AD8" stroke="#C2399C" stroke-width="5"/>
+  <path d="M24 50l8-14 8 28 8-28 8 28 8-28 8 28 4-14" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+const BAT_HTML = k => `<div class="bb"><img src="assets/Bat.svg" alt="">${POUCH.has(k) ? `<span class="pouch">${POUCH_SVG}</span>` : ''}</div>`;
+const FLAG = `<svg viewBox="0 0 80 80" aria-hidden="true"><ellipse cx="34" cy="70" rx="20" ry="6" fill="#2A214833"/>
+  <rect x="31" y="10" width="6" height="60" rx="3" fill="#2A2148"/><path d="M37 12c12-5 22 6 36 0v26c-14 6-24-5-36 0z" fill="#FF60CF"/>
+  <circle cx="34" cy="9" r="5" fill="#FFC200"/></svg>`;
+const PAD = `<svg viewBox="0 0 80 80" aria-hidden="true"><ellipse cx="40" cy="46" rx="33" ry="24" fill="#CDB592"/>
+  <ellipse cx="40" cy="42" rx="33" ry="24" fill="#EFE1C6"/><ellipse cx="40" cy="42" rx="22" ry="15" fill="none" stroke="#DCC9A6" stroke-width="3"/></svg>`;
+const SHADOW = '<ellipse cx="50" cy="86" rx="30" ry="7" fill="#2A214826"/>';
+const DECO = {
+  tree: `<svg viewBox="0 0 100 100" aria-hidden="true">${SHADOW}<rect x="44" y="58" width="12" height="28" rx="4" fill="#8A5A3B"/>
+    <circle cx="50" cy="40" r="27" fill="#3F9A4E"/><circle cx="32" cy="52" r="18" fill="#3F9A4E"/><circle cx="68" cy="52" r="18" fill="#3F9A4E"/>
+    <circle cx="41" cy="31" r="11" fill="#62BC6E"/><circle cx="62" cy="46" r="5" fill="#62BC6E"/></svg>`,
+  pine: `<svg viewBox="0 0 100 100" aria-hidden="true">${SHADOW}<rect x="45" y="70" width="10" height="16" rx="3" fill="#8A5A3B"/>
+    <path d="M50 6 79 46H63L84 74H16L37 46H21Z" fill="#2F7F45" stroke="#2F7F45" stroke-width="4" stroke-linejoin="round"/><path d="M50 6 63 24H50Z" fill="#4FA35A"/></svg>`,
+  rock: `<svg viewBox="0 0 100 100" aria-hidden="true">${SHADOW}<path d="M16 78C12 56 26 34 46 30c18-4 38 10 38 32 2 12-6 18-20 18H28c-6 0-11-1-12-2z" fill="#A8A3BC"/>
+    <path d="M30 46c6-8 16-10 24-8" stroke="#CFCBDE" stroke-width="7" stroke-linecap="round" fill="none"/><path d="M60 62l10 6" stroke="#8C87A3" stroke-width="4" stroke-linecap="round"/></svg>`,
+  pond: `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M22 40q7-6 14 0t14 0M50 66q7-6 14 0t14 0" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity=".6"/>
+    <ellipse cx="74" cy="34" rx="9" ry="5" fill="#5DB86A"/></svg>`,
+};
+const HAND = `<svg viewBox="0 0 80 102" aria-hidden="true"><path d="M30 8c0-5 4-8 8-8s8 3 8 8v34c2-3 6-4 9-2 2-3 7-4 10-1 3-2 9-1 9 5v22c0 18-12 32-28 32h-6C24 98 14 88 10 76L4 58c-2-6 2-11 7-11 3 0 5 2 6 4L30 64V8z"
+  fill="#FFFFFF" stroke="#2A2148" stroke-width="4" stroke-linejoin="round"/><path d="M55 40v12M65 39v13" stroke="#2A2148" stroke-width="3" stroke-linecap="round"/></svg>`;
+const HAND_TIP = [38 / 80, 2 / 102];   // fingertip as a fraction of the hand box
+
+/* ================= world rendering ================= */
+function mk(cls, x, y, html = '') {
+  const d = document.createElement('div');
+  d.className = 'at ' + cls; d.style.setProperty('--x', x); d.style.setProperty('--y', y);
+  d.innerHTML = html; world.append(d); return d;
+}
+function buildWorld() {
+  world.innerHTML = ''; els.tiles.clear(); els.coins.clear(); els.pickups.clear(); els.bats.clear(); els.cells.clear(); els.deco.clear(); els.stars = [];
+  SEC.forEach(s => {
+    const p = document.createElement('div'); p.className = 'plate';
+    p.style.setProperty('--x', s.ox); p.style.setProperty('--y', s.oy);
+    p.style.setProperty('--w', SW); p.style.setProperty('--h', SH); world.append(p);
+  });
+  SEC.forEach(s => {
+    for (let y = s.oy; y < s.oy + SH; y++) for (let x = s.ox; x < s.ox + SW; x++)
+    {
+      const b = BLOCK.get(K(x, y));
+      els.cells.set(K(x, y), mk('cell' + (b === 'W' ? ' water' : b ? ' block' : ''), x, y));
+    }
+  });
+  BLOCK.forEach((ch, k) => {
+    const [x, y] = P(k);
+    const art = ch === 'W' ? DECO.pond : ch === 'R' ? DECO.rock : (x * 7 + y * 3) % 3 ? DECO.tree : DECO.pine;
+    const d = mk('item deco', x, y, art); d.dataset.act = 'bonk'; d.dataset.key = k; els.deco.set(k, d);
+  });
+  SEC.forEach((s, i) => {
+    const pad = mk('item pad', ...s.startW, PAD); pad.dataset.key = K(...s.startW); pad.dataset.sec = i;
+    if (i < S.sec) els.stars[i] = mk('item flag', ...s.starW, FLAG);
+    else els.stars[i] = mk('item star', ...s.starW, '<img src="assets/Star.svg" alt="">');
+    s.batsW.forEach(([x, y]) => { const k = K(x, y); if (!S.flown.includes(k)) els.bats.set(k, mk('item bat', x, y, BAT_HTML(k))); });
+    s.coinsW.forEach(([x, y]) => {
+      if (S.taken.includes(K(x, y))) return;
+      const w = mk('item', x, y); const c = document.createElement('div');
+      c.className = 'coin'; c.dataset.key = K(x, y); c.innerHTML = '<img src="assets/Coin.svg" alt="">';
+      w.append(c); els.coins.set(K(x, y), w);
+    });
+    s.pickupsW.forEach(([x, y]) => {                     // a spring waiting on its own stepping stone
+      mk('item pad', x, y, PAD);
+      if (!S.picked.includes(K(x, y))) els.pickups.set(K(x, y), mk('item pickup', x, y, `<div class="pk">${SPRING_ICON}</div>`));
+    });
+  });
+  Object.keys(S.tiles).forEach(k => renderTile(k));
+  els.char = mk('', ...S.char, '<div class="bob"><img src="assets/Character.svg" alt=""></div>');
+  els.char.id = 'char';
+  refreshTargets();
+}
+function renderTile(k, anim) {
+  const old = els.tiles.get(k); if (old) old.remove(); els.tiles.delete(k);
+  const t = S.tiles[k]; if (!t) return perch(k);
+  const [x, y] = P(k);
+  const el = mk('tile' + (anim ? ' dropped' : '') + (t.spent ? ' spent' : ''), x, y, `<div class="rot" style="--rot:${t.turns * 90}deg">${roadSVG(t.type)}</div>`);
+  el.dataset.act = 'tile'; el.dataset.key = k;
+  els.tiles.set(k, el);
+  perch(k);
+}
+// A bat or rock with a spring under it shrinks and sits up on the springboard.
+function perch(k) {
+  const on = S.tiles[k]?.type === 'p';
+  els.bats.get(k)?.classList.toggle('perch', on);
+  if (BLOCK.get(k) === 'R') els.deco.get(k)?.classList.toggle('perch', on);
+}
+// Only the current section's star, start pad and waiting spring respond to taps. Coins are picked up on the way.
+function refreshTargets() {
+  const cur = SEC[S.sec];
+  world.querySelectorAll('[data-act="target"]').forEach(e => { e.removeAttribute('data-act'); e.classList.remove('target'); });
+  const on = (e, k) => { e.dataset.act = 'target'; e.dataset.key = k; e.classList.add('target'); };
+  const st = els.stars[S.sec]; if (st && st.classList.contains('star')) on(st, K(...cur.starW));
+  world.querySelectorAll('.pad').forEach(p => { if (+p.dataset.sec === S.sec) on(p, p.dataset.key); });
+  els.pickups.forEach((p, k) => { if (inSec(...P(k))) on(p, k); });
+  if (st) st.classList.toggle('ready', !!st.classList.contains('star') && starClean());
+}
+function setChar(x, y) { els.char.style.setProperty('--x', x); els.char.style.setProperty('--y', y); }
+// Only one motion at a time: a leftover celebration jump would otherwise override every later step's hop.
+function bob(cls = 'hop') { const b = els.char.firstChild; b.classList.remove('hop', 'jump', 'spring'); void b.offsetWidth; b.classList.add(cls); }
+
+/* ================= layout ================= */
+function layout() {
+  const W = stage.clientWidth, H = stage.clientHeight, top = 104;
+  const land = Math.min((W - 40) / 8.4, (H - top - 22) / 4.9);    // 4.7 cells of board plus the star row hanging below it
+  const port = Math.min((W - 10) / 6.7, (H - top - 40) / 6.3);
+  const isLand = land >= port;
+  cpx = Math.floor(Math.max(60, Math.min(isLand ? land : port, 175)));
+  world.classList.add('still');
+  requestAnimationFrame(() => requestAnimationFrame(() => world.classList.remove('still')));
+  document.documentElement.style.setProperty('--c', cpx + 'px');
+  world.style.setProperty('--c', cpx + 'px');
+  const bw = (SW + 2 * M) * cpx + 10, bh = (SH + 2 * M) * cpx + 10;
+  board.style.width = bw + 'px'; board.style.height = bh + 'px';
+  Object.assign($('#fog').style, { left: M * cpx + 'px', top: M * cpx + 'px', width: SW * cpx + 'px', height: SH * cpx + 'px' });
+  if (isLand) {
+    const tw = 1.5 * cpx, total = bw + 24 + tw, left = (W - total) / 2, by = top + Math.max(0, (H - top - bh) / 2);
+    Object.assign(board.style, { left: left + 'px', top: by + 'px' });
+    Object.assign(tray.style, { left: left + bw + 24 + 'px', top: by + 'px', width: tw + 'px', height: bh + 'px' });
+    tray.classList.add('col');
+  } else {
+    const th = 1.5 * cpx, gap = 24 + .2 * cpx, total = bh + gap + th, by = top + Math.max(0, (H - top - total) / 2), left = (W - bw) / 2;   // room for the star row
+    Object.assign(board.style, { left: left + 'px', top: by + 'px' });
+    Object.assign(tray.style, { left: (W - 4.6 * cpx) / 2 + 'px', top: by + bh + gap + 'px', width: 4.6 * cpx + 'px', height: th + 'px' });
+    tray.classList.remove('col');
+  }
+  Object.assign($('#stars').style, { left: parseFloat(board.style.left) + bw / 2 + 'px', top: parseFloat(board.style.top) + bh + 'px' });
+  setCamera(); placeEdge();
+}
+function setCamera() {
+  const s = SEC[S.sec];
+  world.style.transform = `translate(${-(s.ox - M) * cpx}px, ${-(s.oy - M) * cpx}px)`;
+}
+function placeEdge() {
+  const s = SEC[S.sec];
+  if (!s.next || busy) { edge.hidden = true; return; }
+  edge.hidden = false;
+  const d = DIRI[s.next], [lx, ly] = s.star;
+  let x = (M + lx + .5) * cpx, y = (M + ly + .5) * cpx;
+  if (d === 1) x = (M + SW + M / 2) * cpx; if (d === 3) x = (M / 2) * cpx;
+  if (d === 0) y = (M / 2) * cpx;          if (d === 2) y = (M + SH + M / 2) * cpx;
+  edge.style.left = x + 'px'; edge.style.top = y + 'px';
+  edge.style.setProperty('--dir', (d - 1) * 90 + 'deg');
+}
+
+/* ================= rules ================= */
+function inSec(x, y, s = SEC[S.sec]) { return x >= s.ox && x < s.ox + SW && y >= s.oy && y < s.oy + SH; }
+// Stepping stones: the start, the star and spring stones. They connect on every side and take no pieces.
+function isHub(x, y) { const s = SEC[S.sec]; const k = K(x, y); return k === K(...s.startW) || k === K(...s.starW) || (PICKUPS.has(k) && inSec(x, y)); }
+function batActive(k) { return BATS.has(k) && !S.flown.includes(k); }
+// Springs only go on a bat or rock; other pieces only on open meadow.
+// A spring she has already bounced on stays put.
+function canPlace(type, x, y) {
+  const k = K(x, y);
+  if (!inSec(x, y) || isHub(x, y) || S.tiles[k]?.spent) return false;
+  return type === 'p' ? BLOCK.get(k) === 'R' || batActive(k) : !BLOCK.has(k) && !batActive(k);
+}
+function batOops(k, off = null) {
+  const bat = els.bats.get(k); if (!bat) return;
+  bat.classList.remove('wobble'); void bat.offsetWidth; bat.classList.add('wobble');
+  bubble(...P(k), 'Oops!', '', off); Snd.oops();
+  S.oops = true;
+}
+// Springs in the tray. Placing one takes it out; taking an unused one back off the board puts it back.
+function springsLeft() { return S.bag; }
+function placedSprings() { return Object.keys(S.tiles).filter(k => S.tiles[k].type === 'p' && !S.tiles[k].spent && inSec(...P(k))); }
+function pickupHere(k) { return PICKUPS.has(k) && !S.picked.includes(k) && inSec(...P(k)); }
+function bonk(k) {
+  const d = els.deco.get(k); if (!d) return;
+  d.classList.remove('wobble'); void d.offsetWidth; d.classList.add('wobble');
+  BLOCK.get(k) === 'W' ? Snd.splash() : Snd.bonk();
+}
+function open(x, y, d) {
+  const k = K(x, y);
+  if (isHub(x, y)) return true;     // stepping stones connect on every side
+  const t = S.tiles[k]; return !!t && conns(t.type, t.turns % 4).includes(d);
+}
+function dijkstra(sx, sy) {
+  const dist = new Map([[K(sx, sy), 0]]), prev = new Map(), q = [[0, sx, sy]];
+  while (q.length) {
+    q.sort((a, b) => a[0] - b[0]);
+    const [d0, x, y] = q.shift();
+    if (d0 > dist.get(K(x, y))) continue;
+    for (let d = 0; d < 4; d++) {
+      const nx = x + DV[d][0], ny = y + DV[d][1], nk = K(nx, ny);
+      if (!inSec(nx, ny) || !open(x, y, d) || !open(nx, ny, (d + 2) % 4)) continue;
+      const nd = d0 + (batActive(nk) && S.tiles[nk]?.type !== 'p' ? BAT_COST : 1);
+      if (!dist.has(nk) || nd < dist.get(nk)) { dist.set(nk, nd); prev.set(nk, K(x, y)); q.push([nd, nx, ny]); }
+    }
+  }
+  return { dist, prev };
+}
+function starClean() {
+  const s = SEC[S.sec], { dist } = dijkstra(...S.char), d = dist.get(K(...s.starW));
+  return d !== undefined && d < BAT_COST;
+}
+function solOK(sol) { const t = S.tiles[K(sol[0], sol[1])]; return !!t && t.type === sol[2] && sameConns(conns(t.type, t.turns % 4), conns(sol[2], sol[3])); }
+
+/* ================= moving the character ================= */
+async function walkTo(tx, ty) {
+  busy = true; edge.hidden = true;
+  const s = SEC[S.sec], here = K(...S.char);
+  if (here === K(tx, ty)) { bob(); Snd.hop(); busy = false; placeEdge(); return; }
+  const { dist, prev } = dijkstra(...S.char), got = S.score + S.picked.length;
+  let goal = K(tx, ty); const reached = dist.has(goal);
+  if (!reached) goal = roadEnd(dist, prev, tx, ty);
+  const path = []; for (let k = goal; k && k !== here; k = prev.get(k)) path.unshift(k);
+  for (let i = 0; i < path.length; i++) {
+    let k = path[i];
+    if (S.tiles[k]?.type === 'p') {                     // bounce over the spring square, landing on the next one
+      const n = path[i + 1];
+      if (!n) break;
+      if (batActive(n) && S.tiles[n]?.type !== 'p') { await bump(...P(n)); failed(); return done(); }
+      await springHop(k, n); i++; k = n;
+    } else {
+      const [x, y] = P(k);
+      if (batActive(k)) { await bump(x, y); failed(); return done(); }
+      S.char = [x, y]; setChar(x, y); bob(); Snd.step();
+      await sleep(STEP);
+    }
+    if (els.coins.has(k)) collect(k);
+    if (els.pickups.has(k)) collectSpring(k);
+    if (k === K(...s.starW)) return win();
+  }
+  // Short of the target: a walk that found coins or a spring ends happily; one that found nothing is puzzled.
+  if (!reached) { if (S.score + S.picked.length > got) { bob('jump'); Snd.hop(); } else { puzzled(tx, ty); failed(); } }
+  return done();
+  function done() { busy = false; placeEdge(); changed(); }
+}
+// When the road doesn't reach the target she follows it to where it runs out. She heads for the road
+// the child built (or turned) last: of the dead ends she can reach past that piece, the one closest
+// to the target. With no road built, she stays put.
+// A spring stone counts as a road end too, when the child built road to it or it brings her closer to the target.
+function roadEnd(dist, prev, tx, ty) {
+  const hk = K(...S.char), here = Math.abs(S.char[0] - tx) + Math.abs(S.char[1] - ty), ends = [];
+  const built = k => { for (k = prev.get(k); k && k !== hk; k = prev.get(k)) if (S.tiles[k]) return true; return false; };
+  let newest = null;
+  for (const k of dist.keys()) if (S.tiles[k]?.t && (!newest || S.tiles[k].t > S.tiles[newest].t)) newest = k;
+  const via = k => { for (; k; k = prev.get(k)) { if (k === newest) return true; if (k === hk) return false; } return false; };
+  for (const [k, d] of dist) {
+    const [x, y] = P(k), t = S.tiles[k];
+    const stone = PICKUPS.has(k) && k !== K(...S.char);
+    if (stone && Math.abs(x - tx) + Math.abs(y - ty) >= here && !built(k)) continue;
+    if (!stone && (!t || t.type === 'p' || isHub(x, y))) continue;
+    const deadEnd = stone || conns(t.type, t.turns % 4).some(dir => {
+      const nx = x + DV[dir][0], ny = y + DV[dir][1];
+      if (!inSec(nx, ny) || !open(nx, ny, (dir + 2) % 4)) return true;
+      if (S.tiles[K(nx, ny)]?.type !== 'p') return false;
+      const lx = nx + DV[dir][0], ly = ny + DV[dir][1];        // a spring with nowhere to land is a dead end too
+      return !inSec(lx, ly) || !open(lx, ly, (dir + 2) % 4);
+    });
+    if (deadEnd) ends.push([k, d, Math.abs(x - tx) + Math.abs(y - ty)]);
+  }
+  if (newest === hk && ends.some(([k]) => k === hk)) return hk;   // nothing new since she got here: she stays
+  const fresh = ends.filter(([k]) => via(k));
+  let best = hk, bm = Infinity, bd = 0;
+  for (const [k, d, m] of fresh.length ? fresh : ends) if (m < bm || (m === bm && d > bd)) { bm = m; best = k; bd = d; }
+  return best;
+}
+async function springHop(k, n) {
+  const t = S.tiles[k], [x, y] = P(k), [nx, ny] = P(n), hop = STEP * 2.4;
+  if (!t.spent) { t.spent = true; els.tiles.get(k).classList.add('spent'); }
+  Snd.boing();
+  els.char.style.setProperty('--walk', hop + 'ms'); els.char.style.setProperty('--hop', hop + 'ms');
+  S.char = [nx, ny]; setChar(nx, ny); bob('spring');
+  if (batActive(k)) {                                  // the bat gets a fright and leaves, dropping any pouch
+    const bat = els.bats.get(k);
+    S.flown.push(k); els.bats.delete(k);
+    bubble(x, y, 'Eek!', '', [0, -.7]); Snd.eek();
+    const bb = bat.firstChild;
+    bb.animate([{ transform: 'translate(0,0) rotate(0)', opacity: 1 }, { transform: 'translate(-10%,-30%) rotate(-12deg)', opacity: 1, offset: .3 },
+      { transform: 'translate(90%,-260%) rotate(18deg)', opacity: 0 }], { duration: 1100, easing: 'ease-in', fill: 'forwards' }).onfinish = () => bat.remove();
+    if (POUCH.has(k)) {
+      const [cx, cy] = cellCenter(x, y);
+      burst(cx, cy, 10);
+      for (let i = 0; i < 3; i++) { flyCoin(cx, cy, 150 + i * 140); setTimeout(Snd.coin, 150 + i * 140); }
+    }
+  }
+  await sleep(hop);
+  els.char.style.removeProperty('--walk');
+}
+async function bump(x, y) {
+  const [cx, cy] = S.char;
+  setChar(cx + (x - cx) * .4, cy + (y - cy) * .4); bob();
+  await sleep(160);
+  const bat = els.bats.get(K(x, y));
+  bat.classList.remove('wobble'); void bat.offsetWidth; bat.classList.add('wobble');
+  // Keep the bubble clear of the character: beside the bat for an up/down bump, above it for a sideways one.
+  const side = x === cx ? (x - SEC[S.sec].ox >= SW - 1 ? -1 : 1) : 0;
+  bubble(x, y, 'Oops!', '', side ? [side * .78, 0] : null); Snd.oops();
+  await sleep(420);
+  setChar(cx, cy); bob(); await sleep(STEP);
+  S.oops = true;
+}
+function puzzled(tx, ty) {
+  const [cx, cy] = S.char;
+  let best = null, bm = Infinity;     // the square that would carry the path toward the target
+  for (let d = 0; d < 4; d++) {
+    let nx = cx + DV[d][0], ny = cy + DV[d][1];
+    if (open(cx, cy, d) && inSec(nx, ny) && open(nx, ny, (d + 2) % 4)) {
+      if (S.tiles[K(nx, ny)]?.type !== 'p') continue;           // connected road: not the gap
+      nx += DV[d][0]; ny += DV[d][1];                           // past a spring: the gap is where she'd land
+      if (inSec(nx, ny) && open(nx, ny, (d + 2) % 4)) continue;
+    }
+    if (!inSec(nx, ny) || BLOCK.has(K(nx, ny))) continue;
+    const m = Math.abs(nx - tx) + Math.abs(ny - ty);
+    if (m < bm) { bm = m; best = K(nx, ny); }
+  }
+  // If a bat is what's in the way, the bat says so; otherwise she looks puzzled and the gap glows.
+  if (best && batActive(best)) { const side = P(best)[0] === cx ? (P(best)[0] - SEC[S.sec].ox >= SW - 1 ? -1 : 1) : 0; return batOops(best, side ? [side * .78, 0] : null); }
+  bubble(cx, cy, '?', 'q'); Snd.puzzled();
+  const cell = best && els.cells.get(best);
+  if (cell) { cell.classList.remove('glow'); void cell.offsetWidth; cell.classList.add('glow'); setTimeout(() => cell.classList.remove('glow'), 3000); }
+}
+function bubble(x, y, text, cls = '', off = null) {
+  const b = mk('bubble ' + cls, x, y, `<span>${text}</span>`);
+  if (off) { b.firstChild.style.setProperty('--bx', off[0]); b.firstChild.style.setProperty('--by', off[1]); }
+  setTimeout(() => b.remove(), 1700);
+}
+function failed() {
+  if (++S.fails >= 3) { S.fails = 0; setTimeout(() => { if (!busy && !hintActive) showHint(computeHint()); }, 900); }
+}
+function collect(k) {
+  const w = els.coins.get(k); els.coins.delete(k);
+  const [x, y] = centerOf(w);
+  w.remove(); S.taken.push(k); Snd.coin(); flyCoin(x, y);
+}
+function collectSpring(k) {
+  const w = els.pickups.get(k); els.pickups.delete(k);
+  const [x, y] = centerOf(w); w.remove();
+  S.picked.push(k); S.bag++; Snd.unlock();
+  const slot = tray.querySelector('[data-piece="p"]'), [tx, ty] = centerOf(slot);
+  const f = document.createElement('div'); f.className = 'flyspring'; f.innerHTML = SPRING_ICON; fx.append(f);
+  f.animate([
+    { transform: `translate(${x}px, ${y}px) scale(1)` },
+    { transform: `translate(${(x + tx) / 2}px, ${Math.min(y, ty) - 90}px) scale(1.6)`, offset: .45 },
+    { transform: `translate(${tx}px, ${ty}px) scale(.9)` },
+  ], { duration: 800, easing: 'ease-in-out' }).onfinish = () => {
+    f.remove(); paintCount(); slot.classList.remove('unlock'); void slot.offsetWidth; slot.classList.add('unlock');
+  };
+}
+function paintStars() {
+  const row = $('#stars');
+  if (!row.children.length) SEC.forEach(() => { const i = document.createElement('img'); i.src = 'assets/Star.svg'; i.alt = ''; row.append(i); });
+  [...row.children].forEach((img, i) => { img.classList.toggle('done', i < S.sec); img.classList.toggle('now', i === S.sec); });
+  row.setAttribute('aria-label', `${S.sec} of ${SEC.length} stars`);
+}
+function flyStar([x, y], i) {
+  const slot = $('#stars').children[i], r = slot.getBoundingClientRect(), tx = r.left + r.width / 2, ty = r.top + r.height / 2;
+  const f = document.createElement('img'); f.src = 'assets/Star.svg'; f.className = 'flycoin'; fx.append(f);
+  f.animate([
+    { transform: `translate(${x}px, ${y}px) scale(1.6)` },
+    { transform: `translate(${(x + tx) / 2}px, ${Math.max(60, Math.min(y, ty) - 70)}px) scale(1.8) rotate(180deg)`, offset: .45 },
+    { transform: `translate(${tx}px, ${ty}px) scale(.65) rotate(360deg)` },
+  ], { duration: 850, easing: 'ease-in-out' }).onfinish = () => {
+    f.remove(); slot.classList.remove('now'); slot.classList.add('done', 'pop'); Snd.coin();
+    slot.addEventListener('animationend', () => slot.classList.remove('pop'), { once: true });
+  };
+}
+function flyCoin(x, y, delay = 0) {
+  const n = ++S.score;
+  if (coinsEl.hidden) { coinsEl.hidden = false; coinN.textContent = n - 1; }
+  const tr = coinsEl.querySelector('img').getBoundingClientRect();
+  const f = document.createElement('img'); f.src = 'assets/Coin.svg'; f.className = 'flycoin'; fx.append(f);
+  const a = f.animate([
+    { transform: `translate(${x}px, ${y}px) scale(1.3)` },
+    { transform: `translate(${(x + tr.left) / 2 + 20}px, ${Math.min(y, tr.top) - 60}px) scale(1.5)`, offset: .45 },
+    { transform: `translate(${tr.left + tr.width / 2}px, ${tr.top + tr.height / 2}px) scale(.8)` },
+  ], { duration: 700, delay, easing: 'ease-in-out', fill: 'backwards' });
+  a.onfinish = () => { f.remove(); coinN.textContent = Math.max(+coinN.textContent, n); coinsEl.classList.remove('pop'); void coinsEl.offsetWidth; coinsEl.classList.add('pop'); };
+}
+async function win() {
+  const s = SEC[S.sec], star = els.stars[S.sec];
+  busy = true; edge.hidden = true; cancelHint();
+  Snd.fanfare(); star.classList.add('won'); bob('jump'); confetti(star);
+  const from = cellCenter(...s.starW); setTimeout(() => flyStar(from, s.i), 350);   // a copy flies up into the star row
+  await sleep(1500);
+  const flag = mk('item flag', ...s.starW, FLAG); star.remove(); els.stars[S.sec] = flag;
+  if (S.sec === SEC.length - 1) return showEnd();
+  const d = DIRI[s.next], nx = s.starW[0] + DV[d][0], ny = s.starW[1] + DV[d][1];
+  placedSprings().forEach(k => { delete S.tiles[k]; renderTile(k); S.bag++; });   // unused springs come along to the next section
+  S.sec++; S.fails = 0; S.oops = false;
+  world.classList.add('panning'); setCamera(); Snd.swoosh();
+  await sleep(300);
+  S.char = [nx, ny]; setChar(nx, ny); bob('hop'); Snd.hop();
+  await sleep(950);
+  world.classList.remove('panning');
+  const ns = SEC[S.sec];                                   // peek: point out the new star
+  mk('spot', ...ns.starW).addEventListener('animationend', e => e.target.remove());
+  Snd.ping(); refreshTargets(); paintStars();
+  await sleep(1000);
+  if (pointSpring()) await sleep(900);                     // then, smaller, the spring waiting on its stone
+  if (S.sec === 2 && !S.cornerUnlocked) { S.cornerUnlocked = true; await unlockPiece('c'); }
+  if (S.sec === SPRING_SEC && !S.springUnlocked) { S.springUnlocked = true; await unlockPiece('p'); }
+  busy = false; placeEdge(); changed();
+}
+// A smaller ring and a boing on the section's waiting spring, if it has one.
+function pointSpring() {
+  const k = [...els.pickups.keys()].find(k => inSec(...P(k))); if (!k) return false;
+  const s = mk('spot small', ...P(k)); s.addEventListener('animationend', () => s.remove());
+  Snd.boing(); return true;
+}
+async function unlockPiece(type) {
+  const slot = tray.querySelector(`[data-piece="${type}"]`);
+  paintTray(); slot.classList.add('unlock'); Snd.unlock();
+  const r = slot.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, 18);
+  await sleep(800); slot.classList.remove('unlock');
+}
+function showEnd() {
+  $('#endCoins').textContent = `You found ${S.score} of ${COINS_TOTAL} coins.`;
+  $('#end').hidden = false; busy = true;
+}
+
+/* ================= effects ================= */
+function confetti(el) {
+  const r = el.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, 46);
+}
+function burst(x, y, n) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) n = Math.min(n, 10);
+  const cols = ['#FF60CF', '#FFC200', '#79B65C', '#FFFFFF', '#6FC7E8', '#FDA50F'];
+  for (let i = 0; i < n; i++) {
+    const c = document.createElement('div'); c.className = 'confetti'; c.style.background = cols[i % cols.length]; fx.append(c);
+    const a = Math.random() * Math.PI * 2, v = 120 + Math.random() * 220;
+    const dx = Math.cos(a) * v, dy = Math.sin(a) * v - 120;
+    c.animate([
+      { transform: `translate(${x}px,${y}px) rotate(0)`, opacity: 1 },
+      { transform: `translate(${x + dx}px,${y + dy + 260}px) rotate(${Math.random() * 720}deg)`, opacity: 0 },
+    ], { duration: 1100 + Math.random() * 600, easing: 'cubic-bezier(.2,.6,.4,1)' }).onfinish = () => c.remove();
+  }
+}
+function poof(x, y) {
+  for (let i = 0; i < 7; i++) {
+    const p = document.createElement('div'); p.className = 'puff'; fx.append(p);
+    const a = i / 7 * Math.PI * 2, d = 30 + Math.random() * 20;
+    p.animate([
+      { transform: `translate(${x}px,${y}px) scale(.6)`, opacity: .95 },
+      { transform: `translate(${x + Math.cos(a) * d}px,${y + Math.sin(a) * d}px) scale(1.6)`, opacity: 0 },
+    ], { duration: 450, easing: 'ease-out' }).onfinish = () => p.remove();
+  }
+}
+
+/* ================= placing, rotating, removing ================= */
+function clientToCell(px, py) {
+  const r = world.getBoundingClientRect();
+  return [Math.floor((px - r.left) / cpx), Math.floor((py - r.top) / cpx)];
+}
+function cellCenter(x, y) {
+  const r = world.getBoundingClientRect();
+  return [r.left + (x + .5) * cpx, r.top + (y + .5) * cpx];
+}
+function centerOf(el) { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }
+const LIFT = () => cpx * .28;
+
+function startDrag(e, piece, fromKey) {
+  const f = document.createElement('div'); f.className = 'float';
+  f.innerHTML = `<div class="rot" style="--rot:${piece.turns * 90}deg;transition:none">${roadSVG(piece.type)}</div>`;
+  fx.append(f);
+  drag = { id: e.pointerId, piece, fromKey, el: f, hi: null };
+  if (fromKey) { els.tiles.get(fromKey).classList.add('lifting'); tray.classList.add('bin'); }
+  if (piece.type === 'p') els.cells.forEach((c, k) => { if (canPlace('p', ...P(k))) c.classList.add('can'); });   // show where a spring can go
+  Snd.pick(); moveDrag(e);
+}
+function moveDrag(e) {
+  const x = e.clientX, y = e.clientY - LIFT();
+  drag.el.style.transform = `translate(${x - cpx / 2}px, ${y - cpx / 2}px) scale(1.08)`;
+  drag.x = x; drag.y = y;
+  const [cx, cy] = clientToCell(x, y), k = K(cx, cy);
+  const ok = canPlace(drag.piece.type, cx, cy);
+  if (drag.hi && drag.hi !== k) els.cells.get(drag.hi)?.classList.remove('hi');
+  drag.hi = ok ? k : null;
+  if (ok) els.cells.get(k).classList.add('hi');
+}
+function endDrag() {
+  const d = drag; drag = null;
+  if (d.hi) els.cells.get(d.hi)?.classList.remove('hi');
+  els.cells.forEach(c => c.classList.remove('can'));
+  tray.classList.remove('bin');
+  const [cx, cy] = clientToCell(d.x, d.y), k = K(cx, cy);
+  const inside = inSec(cx, cy), valid = canPlace(d.piece.type, cx, cy);
+  const src = d.fromKey && els.tiles.get(d.fromKey);
+  const underChar = d.fromKey === K(...S.char);    // the piece she stands on can be turned or swapped, not carried off
+  if (underChar && k !== d.fromKey) {
+    d.el.classList.add('back'); const [tx, ty] = cellCenter(...S.char);
+    d.el.style.transform = `translate(${tx - cpx / 2}px, ${ty - cpx / 2}px)`;
+    setTimeout(() => { d.el.remove(); src.classList.remove('lifting'); }, 300);
+    Snd.no(); bob();
+  } else if (valid && k !== d.fromKey) {
+    if (S.tiles[k]) { if (S.tiles[k].type === 'p') S.bag++; poof(...cellCenter(cx, cy)); delete S.tiles[k]; renderTile(k); }
+    if (d.fromKey) { delete S.tiles[d.fromKey]; renderTile(d.fromKey); }
+    else if (d.piece.type === 'p') S.bag--;                                   // a spring from the tray
+    S.tiles[k] = { type: d.piece.type, turns: d.piece.turns, t: ++S.clock };
+    renderTile(k, true); Snd.drop(); d.el.remove();
+  } else if (valid) {                                   // dropped back where it was
+    src.classList.remove('lifting'); d.el.remove(); Snd.drop();
+  } else if (inside) {                                  // tree, rock, pond, start or star: not allowed, fly back
+    const [tx, ty] = d.fromKey ? cellCenter(...P(d.fromKey)) : centerOf(tray.querySelector(`[data-piece="${d.piece.type}"]`));
+    d.el.classList.add('back'); d.el.style.transform = `translate(${tx - cpx / 2}px, ${ty - cpx / 2}px) scale(.9)`; d.el.style.opacity = '.3';
+    setTimeout(() => { d.el.remove(); src && src.classList.remove('lifting'); }, 300);
+    if (batActive(k) && d.piece.type !== 'p') batOops(k);              // only a spring can go on a bat
+    else if (BLOCK.has(k) && !(d.piece.type === 'p' && BLOCK.get(k) === 'R')) bonk(k);
+    else Snd.no();
+  } else {                                              // off the grid: gone
+    poof(d.x, d.y); d.el.remove(); Snd.whoosh();
+    if (d.fromKey) { if (d.piece.type === 'p') S.bag++; delete S.tiles[d.fromKey]; renderTile(d.fromKey); }
+  }
+  changed();
+}
+function rotateTile(k) {
+  const t = S.tiles[k]; if (!t) return;
+  t.turns++; t.t = ++S.clock; els.tiles.get(k).firstChild.style.setProperty('--rot', t.turns * 90 + 'deg');
+  Snd.spin(); changed();
+}
+function changed() {
+  lastChange = performance.now();
+  if (!busy) refreshTargets();
+  paintCount(); snapshot();
+}
+
+/* ================= input ================= */
+document.addEventListener('pointerdown', e => {
+  lastAct = performance.now();
+  if (hintActive) cancelHint();
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act;
+  if (act === 'play') return startGame();
+  if (act === 'again') return restart();
+  if (act === 'music') { $('#music').classList.toggle('off', !Snd.toggle()); return; }
+  if (!started || busy || drag || press) return;
+  if (act === 'tray') {
+    if (el.classList.contains('locked') || el.classList.contains('empty')) {
+      Snd.no(); el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope');
+      if (el.classList.contains('empty')) setTimeout(pointSpring, 350);   // out of springs: show where one is waiting
+      return;
+    }
+    return startDrag(e, { type: el.dataset.piece, turns: 0 }, null);
+  }
+  if (act === 'tile') {
+    const [x, y] = P(el.dataset.key); if (!inSec(x, y)) return;
+    if (S.tiles[el.dataset.key].spent) { Snd.no(); el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); return; }
+    press = { id: e.pointerId, key: el.dataset.key, x0: e.clientX, y0: e.clientY };
+    return;
+  }
+  if (act === 'target') { const [x, y] = P(el.dataset.key); if (inSec(x, y)) walkTo(x, y); }
+  if (act === 'bonk' && inSec(...P(el.dataset.key))) bonk(el.dataset.key);
+});
+window.addEventListener('pointermove', e => {
+  if (press && e.pointerId === press.id && Math.hypot(e.clientX - press.x0, e.clientY - press.y0) > 12) {
+    const t = S.tiles[press.key], k = press.key; press = null;
+    startDrag(e, { type: t.type, turns: t.turns }, k);
+  } else if (drag && e.pointerId === drag.id) moveDrag(e);
+});
+function up(e) {
+  lastAct = performance.now();
+  if (press && e.pointerId === press.id) { const k = press.key; press = null; if (e.type === 'pointerup') rotateTile(k); }
+  else if (drag && e.pointerId === drag.id) endDrag();
+}
+window.addEventListener('pointerup', up);
+window.addEventListener('pointercancel', up);
+// iPad Safari only unlocks audio on a tap's release, so resume there too.
+['touchend', 'click'].forEach(t => document.addEventListener(t, () => { if (started) Snd.init(); }));
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+document.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('resize', layout);
+
+/* ================= hints (ghost hand) ================= */
+// Lessons: each new skill is shown once, the first time it's needed.
+const LESSONS = {
+  0: [{ id: 'drag', done: () => solOK(SEC[0].solW[0]), act: () => hintForSol(SEC[0].solW[0]) },
+      { id: 'tap', when: () => solOK(SEC[0].solW[0]), done: () => false, act: () => ({ kind: 'tap', cell: SEC[0].starW }) }],
+  1: [{ id: 'rotate', done: () => solOK(SEC[1].solW[2]), act: () => ({ kind: 'rotate', cell: SEC[1].solW[2] }) }],
+  2: [{ id: 'corner', when: () => S.cornerUnlocked, done: () => solOK(SEC[2].solW[0]), act: () => hintForSol(SEC[2].solW[0]) }],
+  // The one piece already here runs straight at the bat: drag it away and go around.
+  3: [{ id: 'remove', done: () => { const k = K(...SEC[3].preW[0]); return !S.tiles[k] || k === K(...S.char) || solOK(SEC[3].solW[0]); },
+        act: () => ({ kind: 'remove', cell: SEC[3].preW[0].slice(0, 2) }) }],
+  // Tap the spring on its stone to go and get it, then drop it on the pouch bat.
+  [SPRING_SEC]: [
+    { id: 'fetch', when: () => S.springUnlocked, done: () => S.picked.includes(K(...SEC[SPRING_SEC].pickupsW[0])),
+      act: () => ({ kind: 'tap', cell: SEC[SPRING_SEC].pickupsW[0] }) },
+    { id: 'spring', when: () => S.bag > 0, done: () => solOK(SEC[SPRING_SEC].solW[0]) || S.flown.length > 0,
+      act: () => hintForSol(SEC[SPRING_SEC].solW[0]) }],
+};
+function pendingLesson() {
+  return (LESSONS[S.sec] || []).find(l => !S.shown.includes(S.sec + l.id) && (!l.when || l.when()) && !l.done());
+}
+function hintForSol([x, y, type, r]) {
+  const t = S.tiles[K(x, y)];
+  if (!t || t.type !== type) return { kind: 'drag', type, cell: [x, y] };   // dropping on a wrong piece swaps it
+  return { kind: 'rotate', cell: [x, y] };
+}
+// When stuck: find every route from where she stands to the star, pick the one closest to
+// what's already built, and point at its first square that still needs a change.
+// A route can use springs she has (tray or placed but unused) plus ones she picks up along it,
+// but a picked-up spring has to be fetched first: build out to its stone and tap it.
+function computeHint() {
+  const s = SEC[S.sec], star = K(...s.starW);
+  if (starClean()) return { kind: 'tap', cell: s.starW };
+  const placed = placedSprings(), have = S.bag + placed.length;
+  const kind = (x, y) => {
+    if (!inSec(x, y)) return 'no';
+    const k = K(x, y), t = S.tiles[k], b = BLOCK.get(k);
+    if (k === star) return 'star';
+    if (isHub(x, y)) return 'open';
+    if (t?.type === 'p') return t.spent ? 'spent' : 'spring';
+    if (b === 'T' || b === 'W') return 'no';
+    return b === 'R' || batActive(k) ? 'springable' : 'open';
+  };
+  let best = null;
+  const path = [S.char], dirs = [], seen = new Set([K(...S.char)]);
+  const finish = () => {
+    let miss = 0, hit = 0, first = null;
+    // More springs needed than she holds: only the road up to the first spring pickup can be built now.
+    const keys = path.map(p => K(...p));
+    const fresh = keys.filter(k => kind(...P(k)) === 'springable').length;
+    const spare = S.bag + placed.filter(k => !keys.includes(k)).length;
+    const limit = fresh > spare ? keys.findIndex(pickupHere) : path.length;
+    path.forEach(([x, y], i) => {
+      if (i === path.length - 1) return;                       // the star
+      const k = K(x, y), t = S.tiles[k];
+      let need;
+      if (i === 0) {                                           // where she stands only has to face the first step
+        if (isHub(x, y) || (t && conns(t.type, t.turns % 4).includes(dirs[0]))) return;
+        need = { kind: 'rotate', cell: [x, y] };
+      } else {
+        if (isHub(x, y)) return;
+        const a = (dirs[i - 1] + 2) % 4, b = dirs[i];
+        const sk = kind(x, y), type = sk === 'spring' || sk === 'springable' || sk === 'spent' ? 'p' : a % 2 === b % 2 ? 's' : 'c';
+        const r = [0, 1, 2, 3].find(r => sameConns(conns(type, r), [a, b]));
+        if (t && t.type === type && sameConns(conns(t.type, t.turns % 4), [a, b])) { hit++; return; }
+        need = t && t.type === type ? { kind: 'rotate', cell: [x, y] } : { kind: 'drag', type, cell: [x, y], r };
+      }
+      miss++; if (i <= limit) first = first || need;
+    });
+    if (!first && limit >= 0 && limit < path.length) first = { kind: 'tap', cell: path[limit] };   // road reaches the spring: tap it to go and get it
+    const score = -hit * 10000 + miss * 100 + path.length;     // reuse what they built, then fewest changes, then shortest
+    if (!best || score < best.score) best = { score, first };
+  };
+  const dfs = (x, y, used, cap) => {
+    for (let d = 0; d < 4; d++) {
+      const nx = x + DV[d][0], ny = y + DV[d][1], nk = K(nx, ny);
+      if (seen.has(nk)) continue;
+      const kd = kind(nx, ny);
+      if (kd === 'no') continue;
+      if (kd === 'star') { path.push([nx, ny]); dirs.push(d); finish(); path.pop(); dirs.pop(); continue; }
+      if (kd === 'open') { seen.add(nk); path.push([nx, ny]); dirs.push(d); dfs(nx, ny, used, cap + pickupHere(nk)); seen.delete(nk); path.pop(); dirs.pop(); continue; }
+      // spring squares are crossed straight through and need open ground (or the star) to land on
+      const take = kd === 'spent' ? 0 : 1;
+      if (used + take > cap) continue;
+      const lx = nx + DV[d][0], ly = ny + DV[d][1], lk = K(lx, ly), lkind = kind(lx, ly);
+      if (seen.has(lk) || !['open', 'star'].includes(lkind)) continue;
+      if (kd === 'spent' && !conns('p', S.tiles[nk].turns % 4).includes(d)) continue;
+      seen.add(nk); path.push([nx, ny]); dirs.push(d);
+      if (lkind === 'star') { path.push([lx, ly]); dirs.push(d); finish(); path.pop(); dirs.pop(); }
+      else { seen.add(lk); path.push([lx, ly]); dirs.push(d); dfs(lx, ly, used + take, cap + pickupHere(lk)); seen.delete(lk); path.pop(); dirs.pop(); }
+      seen.delete(nk); path.pop(); dirs.pop();
+    }
+  };
+  dfs(...S.char, 0, have);
+  if (!best || !best.first) return { kind: 'tap', cell: s.starW };
+  // The route needs a spring the tray can't give: a spring sitting off the route has to come back first.
+  if (best.first.type === 'p' && S.bag < 1 && placed.length) return { kind: 'remove', cell: P(placed[0]) };
+  return best.first;
+}
+function cancelHint() {
+  hintTok++; hintAnims.forEach(a => a.cancel()); hintEls.forEach(e => e.remove());
+  hintAnims = []; hintEls = []; hintActive = false;
+}
+function hEl(cls, html = '') { const e = document.createElement('div'); e.className = cls; e.innerHTML = html; fx.append(e); hintEls.push(e); return e; }
+async function showHint(h) {
+  if (!h) return;
+  cancelHint(); const tok = ++hintTok; hintActive = true;
+  const hand = hEl('hand', HAND);
+  const hw = cpx * .62, hh = hw * 102 / 80;
+  const HT = ([x, y], s = 1) => `translate(${x - hw * HAND_TIP[0]}px, ${y - hh * HAND_TIP[1]}px) scale(${s})`;
+  const GT = ([x, y], s = 1) => `translate(${x - cpx / 2}px, ${y - cpx / 2}px) scale(${s})`;
+  hand.style.transformOrigin = `${HAND_TIP[0] * 100}% ${HAND_TIP[1] * 100}%`;
+  const anim = (el, kf, dur) => { const a = el.animate(kf, { duration: dur, easing: 'ease-in-out', fill: 'forwards' }); hintAnims.push(a); return a.finished.catch(() => {}); };
+  const ripple = (p, delay) => { const r = hEl('ripple'); anim(r, [
+    { transform: `translate(${p[0]}px,${p[1]}px) scale(.3)`, opacity: 0, offset: 0 },
+    { transform: `translate(${p[0]}px,${p[1]}px) scale(.3)`, opacity: .9, offset: delay },
+    { transform: `translate(${p[0]}px,${p[1]}px) scale(1.5)`, opacity: 0, offset: Math.min(1, delay + .2) },
+    { transform: `translate(${p[0]}px,${p[1]}px) scale(1.5)`, opacity: 0, offset: 1 }], 1900); };
+  const tapAt = p => {
+    ripple(p, .3); ripple(p, .55);
+    return anim(hand, [
+      { transform: HT([p[0] + cpx * .3, p[1] + cpx * .45]), opacity: 0 },
+      { transform: HT(p), opacity: 1, offset: .2 },
+      { transform: HT(p, .85), offset: .3 }, { transform: HT(p), offset: .4 },
+      { transform: HT(p, .85), offset: .55 }, { transform: HT(p), offset: .65 },
+      { transform: HT(p), opacity: 1, offset: .85 }, { transform: HT(p), opacity: 0 }], 1900);
+  };
+  if (h.kind === 'tap') await tapAt(cellCenter(...h.cell));
+  else if (h.kind === 'rotate') await tapAt(cellCenter(...h.cell));
+  else if (h.kind === 'drag' || h.kind === 'remove') {
+    let a, b, type, turns = 0;
+    if (h.kind === 'drag') { a = centerOf(tray.querySelector(`[data-piece="${h.type}"]`)); b = cellCenter(...h.cell); type = h.type; }
+    else {
+      const t = S.tiles[K(...h.cell)]; type = t.type; turns = t.turns; a = cellCenter(...h.cell);
+      const br = board.getBoundingClientRect(), s = SEC[S.sec], [lx, ly] = [h.cell[0] - s.ox, h.cell[1] - s.oy];
+      const opts = [[lx + 1, [br.left - cpx * .2, a[1]]], [SW - lx, [br.right + cpx * .2, a[1]]], [ly + 1, [a[0], br.top - cpx * .1]], [SH - ly, [a[0], br.bottom + cpx * .2]]];
+      b = opts.sort((p, q) => p[0] - q[0])[0][1];
+    }
+    const ghost = hEl('ghost', `<div class="rot" style="--rot:${turns * 90}deg;transition:none">${roadSVG(type)}</div>`);
+    anim(ghost, [
+      { transform: GT(a), opacity: 0 }, { transform: GT(a), opacity: 0, offset: .22 },
+      { transform: GT(a, 1.06), opacity: .75, offset: .28 }, { transform: GT(b, 1.06), opacity: .75, offset: .72 },
+      { transform: GT(b, h.kind === 'remove' ? .5 : 1), opacity: h.kind === 'remove' ? 0 : .75, offset: .85 },
+      { transform: GT(b), opacity: 0 }], 2400);
+    await anim(hand, [
+      { transform: HT([a[0] + cpx * .3, a[1] + cpx * .45]), opacity: 0 },
+      { transform: HT(a), opacity: 1, offset: .15 }, { transform: HT(a, .85), offset: .25 },
+      { transform: HT(b, .85), offset: .72 }, { transform: HT(b), opacity: 1, offset: .85 },
+      { transform: HT(b), opacity: 0 }], 2400);
+  }
+  if (tok === hintTok) cancelHint();
+}
+setInterval(() => {
+  if (!started || busy || drag || press || hintActive) return;
+  const now = performance.now();
+  const l = pendingLesson();
+  if (l && now - lastChange > 700 && now - lastAct > 700) { S.shown.push(S.sec + l.id); showHint(l.act()); lastAct = now; return; }
+  const idle = S.sec <= SPRING_SEC ? 6000 : 10000;
+  if (now - Math.max(lastAct, lastChange) > idle) { lastAct = now; showHint(computeHint()); }
+}, 300);
+
+/* ================= boot ================= */
+function paintTray() {
+  tray.querySelectorAll('.slot').forEach(sl => {
+    const keep = [...sl.querySelectorAll('.lock, .count')];
+    sl.innerHTML = `<div class="rot">${roadSVG(sl.dataset.piece)}</div>`;
+    sl.append(...keep);
+    if (sl.dataset.piece === 'c') sl.classList.toggle('locked', !S.cornerUnlocked);
+    if (sl.dataset.piece === 'p') sl.classList.toggle('locked', !S.springUnlocked);
+  });
+  paintCount();
+}
+function paintCount() {
+  const sl = tray.querySelector('[data-piece="p"]'), n = Math.max(0, S.bag);
+  sl.querySelector('.count').textContent = '×' + n;
+  sl.classList.toggle('empty', S.springUnlocked && n === 0);
+}
+function boot(data) {
+  S = data && data.tiles ? { ...freshState(), ...data } : freshState();
+  if (S.sec > 2) S.cornerUnlocked = true;
+  if (S.sec > SPRING_SEC) S.springUnlocked = true;
+  buildWorld(); paintTray(); paintStars(); layout();
+  coinsEl.hidden = S.score === 0; coinN.textContent = S.score;
+}
+function startGame() {
+  Snd.init(); Snd.startMusic(); Snd.tap();
+  $('#title').hidden = true; started = true; lastAct = lastChange = performance.now();
+}
+function restart() {
+  $('#end').hidden = true; busy = false; cancelHint();
+  boot(null); started = true; lastAct = lastChange = performance.now();
+}
+function snapshot() {}
+window.claude?.hot?.snapshot?.(() => ({ ...S, fails: 0 }));
+const startFn = d => boot(d);
+window.claude?.hot?.ready ? window.claude.hot.ready(startFn) : startFn(window.claude?.hot?.data ?? {});
+</script>
