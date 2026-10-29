@@ -156,9 +156,61 @@ The path tiles and the flag are drawn in code to match the art's style.
 - **Broken roads:** if the road runs out, she still stops at a spring stone on the way when the child built road to it, or when it's closer to the target than where she stands. With nothing built, she stays put.
 - **Tried and dropped:** springs lying on ordinary meadow squares. Collecting one meant tapping the star with an unfinished road, walking into a dead end and showing "?", so it felt like failing. And since a spring jump can't turn, a spring sitting right under a bat was a trap.
 
+## Lessons world (built, branch expansion-lessons-bridge)
+
+**The idea.** The child explores and carries sun drops (the stars). Along the way they meet lesson characters. The sun drops help the character overcome something, and that happens in the lesson or quiz. In the real game a lesson can hold four or five lesson or quiz loops.
+
+**A second version beside the first.** The lessons world doesn't replace the path world or follow on from it. Two buttons at the top ("Path" and "Lessons") switch between them, and work from the title screen too. The lessons world is `index.html?world=lessons`. It assumes straights, corners and springs are already known: all three are in the tray from the start, with springs at ×0.
+
+**Lesson stones**
+- A light shines down onto a lit stepping stone, and the lesson character or object floats in it, bobbing. The beam stays inside its own square, with room on each side. A character comes as a round portrait and is drawn a little smaller than an object, so the light shows around it.
+- The lessons take turns between the bird (`assets/Friend.svg`) and the rain cloud, which is drawn in code: bird, cloud, bird, cloud.
+- Tapping the stone sends her there. On arriving, the friend steps up to the stone's corner to make room for her, and the lesson card opens: a placeholder labelled "Lesson / Quiz" with an arrow to continue.
+- After the arrow: coins burst out like a pouch bat's (+3), the light goes off, the cloud cheers up, and a copy of the friend flies into the progress row. Then the star wakes, and any stones that were waiting for the lesson fill.
+
+**The sleeping star**
+- In a lesson section the star is on the board from the start, grey and asleep. While it sleeps it counts as a closed square, like a tree: she can't walk onto it or land a jump on it, so a saved spring or bridge can't skip the lesson.
+- Tapping it makes it wobble and rings the lesson stone. When a section opens, the big ring goes on the lesson, not the star.
+- In the map key, `s` and `g` are spring and bridge stones that fill only after the lesson. They are stepping stones from the start, so the road can turn on them.
+
+**The bridge**
+- A fourth tray piece, collected from its own stone like a spring. It goes only on a pond square and works like a straight piece, laid over the water's ripples. Once she has walked across it, it stays where it is. Unused bridges come along to the next section.
+- Section 2 teaches it, and is also the first road the child builds. The bridge slot unlocks at ×0 and the bridge stone rings. The hand taps the stone next to her, drags a straight piece out to the pond, then lays the bridge on the pond. The last piece to the star is left to the child (the hand helps after a few idle seconds).
+
+**Swipe to explore**
+- Press on her square and flick a direction. She sets off as soon as the finger has moved, before it lifts, and follows the road until it ends or she reaches a stepping stone. If nothing is built that way, she leans over and comes back with a small sound.
+- A tap on her square still turns the piece she's standing on. The swipe only exists in the lessons world.
+- Section 1 teaches it, together with turning a piece: the road to the star is already built, coins and all, but one straight piece is turned the wrong way. The hand taps it to turn it, then presses on her and flicks along the road. The crooked piece is never the one under her, so the tap and the swipe can't get mixed up.
+
+**Stepping stones stay tappable.** An empty spring or bridge stone can still be tapped to send her there, in both worlds.
+
+**Hints keep springs and bridges in hand.** When there's a way round on land, the hand never suggests spending a spring or bridge. Pieces the child has already laid count as free. After that, hints prefer reusing what's built, then the fewest changes, then the shortest route.
+
+**Progress row:** the four friends, faint until their lesson is done. The next one pulses.
+
+**The 12 sections** (a 4×3 map, snaking right, down, left, down, right). There's a lesson in every third section, so one lesson for every three sun drops. Each section is mostly blocked, leaving about 6 to 11 open squares, and they ease in one new thing at a time.
+
+| # | What it's about |
+|---|---|
+| 1 | Turn and swipe: the road to the star is built, with three coins on it, but one piece is turned the wrong way. Tap it, then swipe |
+| 2 | Bridge lesson and first building: fetch the bridge, drag a straight to the pond, lay the bridge, then one more straight to the star |
+| 3 | First lesson (bird), kept gentle, and the first turn piece she lays: the hand drags it next to her, then taps it round. A short road to the lesson, then on to the star. Coins sit on short side spurs, worth a swipe |
+| 4 | A long land route with 2 coins that passes a spring stone (keep it), or a bridge shortcut |
+| 5 | A bat with coins behind it: spend the spring, or take the long safe way |
+| 6 | Lesson (cloud). The spring fills after the lesson, and the only way to the star is a jump over the rock beside it |
+| 7 | Pouch bat (+3), a rock jump, or the safe way round. A spring stone sits just off the start |
+| 8 | A pond column with three crossings. The bridge stone is next to the start |
+| 9 | Lesson (bird), reached only across a pond. The spring fills after the lesson, for a rock jump to the star |
+| 10 | A safe route, a rock jump, or a spring stone on the way to a bat with coins |
+| 11 | A safe route, or a bridge to reach a spring stone, then a spring over the pouch bat |
+| 12 | Lesson (cloud), the finale. A bridge and a spring both fill after the lesson |
+
+- Total coins: 44 (26 on the ground, 2 pouch bats at +3, 4 lessons at +3). One run can't collect them all.
+- Every section was checked by playing through the whole world using only the hints.
+- **Preview:** locally for now. The live link only shows `main`.
+
 ## Saved for later
 
-- **Bridge piece:** crosses a pond square. A good fit for a river-themed world. Collected the same way as springs.
 - **The rule for any new piece to collect:** it waits on its own stepping stone, which is a side destination. The star stays the only goal and the main thing to tap. There's no go button: tapping the star or a stone is both the goal and the action (decided 2026-10-28).
 
 - **Bonus paths:** a door square that leads into a side path full of coins. At its end, the child returns to the main path at the door they entered through.
