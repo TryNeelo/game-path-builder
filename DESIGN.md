@@ -186,7 +186,8 @@ The path tiles and the flag are drawn in code to match the art's style.
 **Swipe to explore**
 - Press on her square and flick a direction. She sets off as soon as the finger has moved, before it lifts, and follows the road until it ends or she reaches a stepping stone. If nothing is built that way, she leans over and comes back with a small sound.
 - A tap on her square still turns the piece she's standing on.
-- Section 2 teaches it, together with turning a piece: the road to the star is already built, coins and all, but one straight piece is turned the wrong way. The hand taps it to turn it, then presses on her and flicks along the road. The crooked piece is never the one under her, so the tap and the swipe can't get mixed up.
+- Section 2 teaches it, together with turning a piece: the road to the star is already built, coins and all, but one straight piece is turned the wrong way. As the section opens, the hand presses on her and flicks along the road, and she walks up to the crooked piece. Then the hand taps the piece to turn it, and she can carry on by swipe or by tapping the star. The swipe comes first because a child fresh from section 1 tends to tap the star as soon as the road is whole, which would skip the swipe. The crooked piece is never the one under her, so the tap and the swipe can't get mixed up.
+- **If the swipe still gets skipped** (the star tapped first), the hand shows it again once in each later section, whenever there's road ahead of her to swipe along, until she has swiped once.
 
 **Stepping stones stay tappable.** An empty spring or bridge stone can still be tapped to send her there, in both worlds.
 
@@ -199,7 +200,7 @@ The path tiles and the flag are drawn in code to match the art's style.
 | # | What it's about |
 |---|---|
 | 1 | Drag, then tap: one gap in the road, on a coin, between her and the star. The hand drags a straight piece into it, then taps the star. Like the first section of the Path game |
-| 2 | Turn and swipe: the road to the star is built, with three coins on it, but one piece is turned the wrong way. Tap it, then swipe |
+| 2 | Swipe and turn: the road to the star is built, with three coins on it, but one piece is turned the wrong way. Swipe her up to it, then tap it to turn it |
 | 3 | Bridge only: the road is laid up to the pond and on past it. Fetch the bridge from the stone next to her, then lay it on the pond |
 | 4 | First lesson (friend 1), kept gentle, and the first turn piece she lays: the hand drags it next to her, then taps it round. A short road to the lesson, then on to the star. Coins sit on short side spurs, worth a swipe |
 | 5 | A long land route with 2 coins that passes a spring stone (keep it), or a bridge shortcut |

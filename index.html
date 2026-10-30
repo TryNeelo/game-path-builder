@@ -1347,9 +1347,10 @@ const LESSONS = {
       act: () => ({ kind: 'tap', cell: SEC[BRIDGE_SEC].pickupsW[0] }) },
     { id: 'bridge', when: () => S.bridges > 0, done: () => solOK(SEC[BRIDGE_SEC].solW[1]),
       act: () => hintForSol(SEC[BRIDGE_SEC].solW[1]) }],
-  // One piece of the road is turned the wrong way: tap it to turn it. Then the hand swipes from her along the road.
-  [SWIPE_SEC]: [{ id: 'turn', done: () => solOK(SEC[SWIPE_SEC].solW[0]), act: () => ({ kind: 'rotate', cell: SEC[SWIPE_SEC].solW[0] }) },
-    { id: 'swipe', when: () => solOK(SEC[SWIPE_SEC].solW[0]) && !!swipeHint(), done: () => S.swiped, act: () => swipeHint() }],
+  // Straight away the hand swipes from her along the road, which carries her up to a piece turned the wrong way.
+  // Then it taps that piece to turn it. (While the road is broken, tapping the star only gets her as far as the swipe does.)
+  [SWIPE_SEC]: [{ id: 'swipe', when: () => !!swipeHint(), done: () => S.swiped, act: () => swipeHint() },
+    { id: 'turn', done: () => solOK(SEC[SWIPE_SEC].solW[0]), act: () => ({ kind: 'rotate', cell: SEC[SWIPE_SEC].solW[0] }) }],
   // The first turn she lays: drag it out of the tray next to her, then tap it round until it points up through the gap in the trees.
   // Tap the spring on its stone to go and get it (unless one is already in hand), then drop it on the pouch bat.
   [SPRING_SEC]: [
@@ -1360,8 +1361,11 @@ const LESSONS = {
   [LAY_SEC]: [{ id: 'drag', done: () => !!S.tiles[K(...SEC[LAY_SEC].solW[0])], act: () => hintForSol(SEC[LAY_SEC].solW[0]) },
     { id: 'turnc', when: () => !!S.tiles[K(...SEC[LAY_SEC].solW[0])], done: () => solOK(SEC[LAY_SEC].solW[0]), act: () => hintForSol(SEC[LAY_SEC].solW[0]) }],
 };
+// If she never swiped where it was taught (the star got tapped first), the hand shows the swipe again,
+// once a section, whenever there's road ahead of her to swipe along, until she has swiped once.
+const SWIPE_AGAIN = { id: 'swipe', when: () => S.sec > SWIPE_SEC && !S.swiped && !!swipeHint(), done: () => S.swiped, act: () => swipeHint() };
 function pendingLesson() {
-  return (LESSONS[S.sec] || []).find(l => !S.shown.includes(S.sec + l.id) && (!l.when || l.when()) && !l.done());
+  return [...(LESSONS[S.sec] || []), SWIPE_AGAIN].find(l => !S.shown.includes(S.sec + l.id) && (!l.when || l.when()) && !l.done());
 }
 function hintForSol([x, y, type, r]) {
   const t = S.tiles[K(x, y)];
