@@ -2,6 +2,8 @@
 
 A path-building game for kids aged 6–8 on iPad. The child lays path pieces on a grid, then taps a goal to send the character walking along the path.
 
+**One version (since 2026-10-30).** The game is now only the lessons world (see "Lessons world" below), at `index.html`. The first version, a 9-section path world, and the Path / Lessons buttons were removed. The sections on the board, pieces, squares, movement, springs and spring stones still describe how the game plays. The parts marked *first version* below (its 9-section map, star row and teaching order) are kept only as background.
+
 ## Board
 
 - The world is a big map made of screen-sized sections, about 6×4 squares each, joined in any direction (up, down, left, right).
@@ -40,7 +42,7 @@ A path-building game for kids aged 6–8 on iPad. The child lays path pieces on 
 - Reaching the star finishes the section. Coins are a bonus.
 - A cheer plays, the star becomes a little flag, and the camera pans to the next section in whatever direction it lies. The character hops across the edge onto the new section's start square (a round stepping stone). A ring then flashes around the new star with a "ping".
 - Sections sit side by side with no overlap. A thin strip of the neighbouring sections shows around the edges, faded, so the world feels continuous. A bouncing arrow beside the star points the way the journey continues.
-- The demo world is 9 sections winding in a spiral over a 3×3 map: right, right, down, down, left, up, left, down.
+- *First version:* the demo world was 9 sections winding in a spiral over a 3×3 map. The lessons world's 13-section map is described below.
 
 ## Finding the way
 
@@ -48,7 +50,7 @@ A path-building game for kids aged 6–8 on iPad. The child lays path pieces on 
 - **Edge arrow:** a small bouncing arrow beside the star points to where the next section lies.
 - The corner mini-map and full map view were tried and removed: they showed where you are, which children don't ask about, and confused more than they helped.
 
-## Showing progress (built)
+## Showing progress (first version; the row now shows the lesson friends)
 
 - **A row of stars,** one per section, in a small pill centred on the board's bottom edge, half over the board. It stays close to where the play happens, and the top bar keeps just the coins and the music button. Stars already reached are full colour, the current one glows and pulses, and the rest are faint grey. "What's left" is the grey ones, which a child can count.
 - **Reaching a star:** a copy of the star flies from the board into its slot and pops in with a ding. After the camera pan, the next slot starts pulsing.
@@ -56,6 +58,8 @@ A path-building game for kids aged 6–8 on iPad. The child lays path pieces on 
 - **Not used:** a coin count out of the total, since one run can't collect every coin and it would never feel complete. Also not used: a journey line with the owl moving along it, and progress shown only between sections.
 
 ## Teaching by doing
+
+*The numbered list is the first version's teaching order. The rules for hints below still apply; the lessons world's order is in its section table.*
 
 There's no instruction screen. The first sections each teach one new thing, shown by a see-through "ghost hand" that acts out the move once. The game waits until the child copies it.
 
@@ -90,7 +94,8 @@ Everything is generated in code with Web Audio, so there are no audio files:
 
 These are in `assets/`:
 
-- `Character.svg`: the owl girl in a white circle.
+- `Player.svg`: the player's character, a round portrait with a yellow rim.
+- `Friend1.svg` to `Friend4.svg`: the four lesson friends, in the same round portrait style.
 - `Bat.svg`
 - `Coin.svg`
 - `Star.svg`
@@ -122,12 +127,12 @@ The path tiles and the flag are drawn in code to match the art's style.
 - This game has to plug into Neelo's existing game framework, which only supports a coin count. Rewards stay as plain coins, with no extra counters, chests or meters on screen.
 - The end of the journey is left as it is for now: the "You built the whole path!" screen with the coin total.
 
-**Spring lesson (section 6)**
+**Spring lesson (section 6, first version)**
 - Comes after the coin lesson. A pouch bat blocks the only route, and nothing is pre-built.
 - The spring slot unlocks in the tray (×0), and a spring stone sits between her and the bat.
 - The hand taps the spring stone. She hops onto it and grabs the spring, which flies into the tray. Then the hand shows dropping the spring on the bat.
 
-**Multiple routes (free-play sections 7–9)**
+**Multiple routes (free-play sections 7–9, first version)**
 - Each section has two or three ways to the star. Once a child taps the star they've committed, so the choice happens while building and it has to be about coins:
 
   | Section | Safe route | Spring over a rock | Spring over a plain bat |
@@ -156,17 +161,17 @@ The path tiles and the flag are drawn in code to match the art's style.
 - **Broken roads:** if the road runs out, she still stops at a spring stone on the way when the child built road to it, or when it's closer to the target than where she stands. With nothing built, she stays put.
 - **Tried and dropped:** springs lying on ordinary meadow squares. Collecting one meant tapping the star with an unfinished road, walking into a dead end and showing "?", so it felt like failing. And since a spring jump can't turn, a spring sitting right under a bat was a trap.
 
-## Lessons world (built, branch expansion-lessons-bridge)
+## Lessons world (the game)
 
 **The idea.** The child explores and carries sun drops (the stars). Along the way they meet lesson characters. The sun drops help the character overcome something, and that happens in the lesson or quiz. In the real game a lesson can hold four or five lesson or quiz loops.
 
-**A second version beside the first.** The lessons world doesn't replace the path world or follow on from it. Two buttons at the top ("Path" and "Lessons") switch between them, and work from the title screen too. The lessons world is `index.html?world=lessons`. It assumes straights, corners and springs are already known: all three are in the tray from the start, with springs at ×0.
+**The only version.** Straights, corners and springs are all in the tray from the start, with springs at ×0. The opening sections teach dragging, turning, swiping and the bridge, and the first corner is laid in section 4.
 
 **Lesson stones**
 - A light shines down onto a lit stepping stone, and the lesson character or object floats in it, bobbing. The beam stays inside its own square, with room on each side. A character comes as a round portrait and is drawn a little smaller than an object, so the light shows around it.
-- The lessons take turns between the bird (`assets/Friend.svg`) and the rain cloud, which is drawn in code: bird, cloud, bird, cloud.
+- Each lesson has its own friend: `assets/Friend1.svg` to `Friend4.svg`, in order. The code can still take an object (drawn free and a little larger) in place of a character.
 - Tapping the stone sends her there. On arriving, the friend steps up to the stone's corner to make room for her, and the lesson card opens: a placeholder labelled "Lesson / Quiz" with an arrow to continue.
-- After the arrow: coins burst out like a pouch bat's (+3), the light goes off, the cloud cheers up, and a copy of the friend flies into the progress row. Then the star wakes, and any stones that were waiting for the lesson fill.
+- After the arrow: coins burst out like a pouch bat's (+3), the light goes off, and a copy of the friend flies into the progress row. Then the star wakes, and any stones that were waiting for the lesson fill.
 
 **The sleeping star**
 - In a lesson section the star is on the board from the start, grey and asleep. While it sleeps it counts as a closed square, like a tree: she can't walk onto it or land a jump on it, so a saved spring or bridge can't skip the lesson.
@@ -175,12 +180,12 @@ The path tiles and the flag are drawn in code to match the art's style.
 
 **The bridge**
 - A fourth tray piece, collected from its own stone like a spring. It goes only on a pond square and works like a straight piece, laid over the water's ripples. Once she has walked across it, it stays where it is. Unused bridges come along to the next section.
-- Section 2 teaches it, and is also the first road the child builds. The bridge slot unlocks at ×0 and the bridge stone rings. The hand taps the stone next to her, drags a straight piece out to the pond, then lays the bridge on the pond. The last piece to the star is left to the child (the hand helps after a few idle seconds).
+- Section 3 teaches it, and only it: the road is already laid on both sides of the pond. The bridge slot unlocks at ×0 and the bridge stone rings. The hand taps the stone next to her, then lays the bridge on the pond.
 
 **Swipe to explore**
 - Press on her square and flick a direction. She sets off as soon as the finger has moved, before it lifts, and follows the road until it ends or she reaches a stepping stone. If nothing is built that way, she leans over and comes back with a small sound.
-- A tap on her square still turns the piece she's standing on. The swipe only exists in the lessons world.
-- Section 1 teaches it, together with turning a piece: the road to the star is already built, coins and all, but one straight piece is turned the wrong way. The hand taps it to turn it, then presses on her and flicks along the road. The crooked piece is never the one under her, so the tap and the swipe can't get mixed up.
+- A tap on her square still turns the piece she's standing on.
+- Section 2 teaches it, together with turning a piece: the road to the star is already built, coins and all, but one straight piece is turned the wrong way. The hand taps it to turn it, then presses on her and flicks along the road. The crooked piece is never the one under her, so the tap and the swipe can't get mixed up.
 
 **Stepping stones stay tappable.** An empty spring or bridge stone can still be tapped to send her there, in both worlds.
 
@@ -188,26 +193,27 @@ The path tiles and the flag are drawn in code to match the art's style.
 
 **Progress row:** the four friends, faint until their lesson is done. The next one pulses.
 
-**The 12 sections** (a 4×3 map, snaking right, down, left, down, right). There's a lesson in every third section, so one lesson for every three sun drops. Each section is mostly blocked, leaving about 6 to 11 open squares, and they ease in one new thing at a time.
+**The 13 sections** (a 4×3 map, snaking right, down, left, down, right, with one extra section at the top left, so the top row is five wide). After the opening section there's a lesson in every third section, so one lesson for every three sun drops. Each section is mostly blocked, leaving about 6 to 11 open squares, and they ease in one new thing at a time.
 
 | # | What it's about |
 |---|---|
-| 1 | Turn and swipe: the road to the star is built, with three coins on it, but one piece is turned the wrong way. Tap it, then swipe |
-| 2 | Bridge lesson and first building: fetch the bridge, drag a straight to the pond, lay the bridge, then one more straight to the star |
-| 3 | First lesson (bird), kept gentle, and the first turn piece she lays: the hand drags it next to her, then taps it round. A short road to the lesson, then on to the star. Coins sit on short side spurs, worth a swipe |
-| 4 | A long land route with 2 coins that passes a spring stone (keep it), or a bridge shortcut |
-| 5 | A bat with coins behind it: spend the spring, or take the long safe way |
-| 6 | Lesson (cloud). The spring fills after the lesson, and the only way to the star is a jump over the rock beside it |
-| 7 | Pouch bat (+3), a rock jump, or the safe way round. A spring stone sits just off the start |
-| 8 | A pond column with three crossings. The bridge stone is next to the start |
-| 9 | Lesson (bird), reached only across a pond. The spring fills after the lesson, for a rock jump to the star |
-| 10 | A safe route, a rock jump, or a spring stone on the way to a bat with coins |
-| 11 | A safe route, or a bridge to reach a spring stone, then a spring over the pouch bat |
-| 12 | Lesson (cloud), the finale. A bridge and a spring both fill after the lesson |
+| 1 | Drag, then tap: one gap in the road, on a coin, between her and the star. The hand drags a straight piece into it, then taps the star. Like the first section of the Path game |
+| 2 | Turn and swipe: the road to the star is built, with three coins on it, but one piece is turned the wrong way. Tap it, then swipe |
+| 3 | Bridge only: the road is laid up to the pond and on past it. Fetch the bridge from the stone next to her, then lay it on the pond |
+| 4 | First lesson (friend 1), kept gentle, and the first turn piece she lays: the hand drags it next to her, then taps it round. A short road to the lesson, then on to the star. Coins sit on short side spurs, worth a swipe |
+| 5 | A long land route with 2 coins that passes a spring stone (keep it), or a bridge shortcut |
+| 6 | A bat with coins behind it: spend the spring, or take the long safe way |
+| 7 | Lesson (friend 2). The spring fills after the lesson, and the only way to the star is a jump over the rock beside it |
+| 8 | Pouch bat (+3), a rock jump, or the safe way round. A spring stone sits just off the start |
+| 9 | A pond column with three crossings. The bridge stone is next to the start |
+| 10 | Lesson (friend 3), reached only across a pond. The spring fills after the lesson, for a rock jump to the star |
+| 11 | A safe route, a rock jump, or a spring stone on the way to a bat with coins |
+| 12 | A safe route, or a bridge to reach a spring stone, then a spring over the pouch bat |
+| 13 | Lesson (friend 4), the finale. A bridge and a spring both fill after the lesson |
 
-- Total coins: 44 (26 on the ground, 2 pouch bats at +3, 4 lessons at +3). One run can't collect them all.
+- Total coins: 45 (27 on the ground, 2 pouch bats at +3, 4 lessons at +3). One run can't collect them all.
 - Every section was checked by playing through the whole world using only the hints.
-- **Preview:** locally for now. The live link only shows `main`.
+- **Live:** the GitHub Pages link shows `main`.
 
 ## Saved for later
 

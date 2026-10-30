@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@800&display=swap">
 <style>
-/* Layout: one-screen game. Board (one 6×4 section plus a peek margin) beside a piece tray; coins and the star row on top. */
+/* Layout: one-screen game. Board (one 6×4 section plus a peek margin) beside a piece tray; coins on top, the progress row along the bottom edge. */
 :root {
   color-scheme: light;
   --sky: #CDEEF7;
@@ -69,7 +69,7 @@ img { -webkit-user-drag: none; pointer-events: none; }
 }
 #coins img { width: 40px; height: 40px; }
 #coins.pop { animation: pop .45s cubic-bezier(.3,1.8,.5,1); }
-/* One star per section: full colour once reached, the current one pulsing, the rest still to come.
+/* The progress row: one friend per lesson. Done ones in full colour, the next one pulsing, the rest faint.
    It sits centred on the board's bottom edge (placed in layout()). */
 #stars {
   position: absolute; z-index: 6; transform: translate(-50%, -50%); height: calc(var(--c) * .4);
@@ -77,10 +77,6 @@ img { -webkit-user-drag: none; pointer-events: none; }
   background: var(--panel); border: 3px solid var(--white); border-radius: 999px;
   box-shadow: 0 4px 0 #0000001a; pointer-events: none;
 }
-#stars img { width: calc(var(--c) * .19); height: calc(var(--c) * .19); display: block; filter: grayscale(1) brightness(1.35); opacity: .4; transition: filter .3s, opacity .3s; }
-#stars img.done { filter: none; opacity: 1; }
-#stars img.now { filter: none; opacity: 1; animation: ready 1.4s ease-in-out infinite; }
-#stars img.pop { animation: pop .45s cubic-bezier(.3,1.8,.5,1); }
 #music {
   position: absolute; right: 0; top: 14px; width: 60px; height: 60px;
   border-radius: 50%; border: 3px solid var(--white); background: var(--panel);
@@ -89,19 +85,7 @@ img { -webkit-user-drag: none; pointer-events: none; }
 #music svg { width: 30px; height: 30px; pointer-events: none; }
 #music .slash { display: none; }
 #music.off .slash { display: inline; }
-#music:focus-visible, .btn:focus-visible, #worlds button:focus-visible { outline: 4px solid var(--pink); outline-offset: 3px; }
-/* The two versions of the game. Above every overlay, so it works from the title screen too. */
-#worlds {
-  position: fixed; z-index: 90; left: 50%; top: calc(max(10px, env(safe-area-inset-top, 0px)) + 20px); transform: translateX(-50%);
-  display: flex; gap: 4px; padding: 4px; background: var(--panel); border: 3px solid var(--white); border-radius: 999px;
-  box-shadow: 0 4px 0 #0000001a;
-}
-#worlds button {
-  font-family: var(--display); font-size: 20px; color: var(--ink); background: none; border: 0; border-radius: 999px;
-  padding: 8px 18px 6px; cursor: pointer;
-}
-#worlds button[aria-pressed="true"] { background: var(--pink); color: var(--white); box-shadow: 0 3px 0 #C2399C; }
-/* Lessons world: the row shows one friend per lesson instead of one star per section. */
+#music:focus-visible, .btn:focus-visible { outline: 4px solid var(--pink); outline-offset: 3px; }
 #stars .li { width: calc(var(--c) * .3); height: calc(var(--c) * .3); display: grid; place-items: center; border-radius: 50%; background: #CFE7F3;
   filter: grayscale(1); opacity: .5; transition: filter .3s, opacity .3s; }
 #stars .li img, #stars .li svg { width: 100%; height: 100%; display: block; filter: none; opacity: 1; }
@@ -305,7 +289,7 @@ img { -webkit-user-drag: none; pointer-events: none; }
 .slot.empty .rot { opacity: .3; filter: grayscale(1); }
 .slot.empty .count { background: #A9A3B8; }
 .slot.nope { animation: nope .3s ease-in-out; }
-/* Four pieces in the lessons world: slightly smaller slots so they still fit. */
+/* Four pieces: slightly smaller slots so they still fit. */
 #tray.four { gap: calc(var(--c) * .12); }
 #tray.four .slot { width: calc(var(--c) * .98); height: calc(var(--c) * .98); }
 
@@ -401,31 +385,26 @@ img { -webkit-user-drag: none; pointer-events: none; }
       <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 24V7l14-3v17" fill="none" stroke="#2A2148" stroke-width="3" stroke-linejoin="round"/><circle cx="8.5" cy="24" r="4" fill="#2A2148"/><circle cx="22.5" cy="21" r="4" fill="#2A2148"/><path class="slash" d="M4 4l24 24" stroke="#FF60CF" stroke-width="4" stroke-linecap="round"/></svg>
     </button>
     <div id="board"><div id="world"></div><div id="fog"></div><div id="edge"><svg viewBox="0 0 40 40"><path d="M12 6l16 14-16 14" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 6l16 14-16 14" fill="none" stroke="#2A2148" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
-    <div id="tray">
+    <div id="tray" class="four">
       <button class="slot" data-act="tray" data-piece="s" aria-label="Straight piece"></button>
-      <button class="slot locked" data-act="tray" data-piece="c" aria-label="Corner piece"><span class="lock"><svg viewBox="0 0 40 40"><rect x="7" y="17" width="26" height="19" rx="5" fill="#2A2148"/><path d="M13 17v-5a7 7 0 0 1 14 0v5" fill="none" stroke="#2A2148" stroke-width="5"/></svg></span></button>
-      <button class="slot locked" data-act="tray" data-piece="p" aria-label="Spring piece"><span class="lock"><svg viewBox="0 0 40 40"><rect x="7" y="17" width="26" height="19" rx="5" fill="#2A2148"/><path d="M13 17v-5a7 7 0 0 1 14 0v5" fill="none" stroke="#2A2148" stroke-width="5"/></svg></span><span class="count"></span></button>
-      <button class="slot locked" data-act="tray" data-piece="b" aria-label="Bridge piece" hidden><span class="lock"><svg viewBox="0 0 40 40"><rect x="7" y="17" width="26" height="19" rx="5" fill="#2A2148"/><path d="M13 17v-5a7 7 0 0 1 14 0v5" fill="none" stroke="#2A2148" stroke-width="5"/></svg></span><span class="count"></span></button>
+      <button class="slot" data-act="tray" data-piece="c" aria-label="Corner piece"></button>
+      <button class="slot" data-act="tray" data-piece="p" aria-label="Spring piece"><span class="count"></span></button>
+      <button class="slot locked" data-act="tray" data-piece="b" aria-label="Bridge piece"><span class="lock"><svg viewBox="0 0 40 40"><rect x="7" y="17" width="26" height="19" rx="5" fill="#2A2148"/><path d="M13 17v-5a7 7 0 0 1 14 0v5" fill="none" stroke="#2A2148" stroke-width="5"/></svg></span><span class="count"></span></button>
     </div>
   </div>
 </div>
 <div id="fx"></div>
-<div id="worlds" role="group" aria-label="Game version">
-  <button data-act="world" data-world="classic">Path</button>
-  <button data-act="world" data-world="lessons">Lessons</button>
-</div>
-
 <div id="title" class="overlay">
   <div class="card">
-    <div class="hero"><img src="assets/Character.svg" alt=""><img src="assets/Coin.svg" alt=""><img src="assets/Star.svg" alt=""></div>
+    <div class="hero"><img src="assets/Player.svg" alt=""><img src="assets/Coin.svg" alt=""><img src="assets/Star.svg" alt=""></div>
     <h1>Build the Path</h1>
-    <p id="tagline">Lay the road. Tap the star. Watch out for bats!</p>
+    <p>Explore the path and meet friends on the way!</p>
     <button class="btn" data-act="play">Play</button>
   </div>
 </div>
 <div id="end" class="overlay" hidden>
   <div class="card">
-    <div class="hero"><img src="assets/Character.svg" alt=""><img src="assets/Coin.svg" alt=""><img src="assets/Star.svg" alt=""></div>
+    <div class="hero"><img src="assets/Player.svg" alt=""><img src="assets/Coin.svg" alt=""><img src="assets/Star.svg" alt=""></div>
     <h2>You built the whole path!</h2>
     <p id="endCoins"></p>
     <button class="btn" data-act="again">Play again</button>
@@ -448,66 +427,41 @@ img { -webkit-user-drag: none; pointer-events: none; }
    Rotation r = quarter turns clockwise. Straight/spring r0 = left–right. Corner r0 = left+down.
    Stars sit on the edge facing the next section; the character hops across into it.
    sol is the route the lessons point at;
-   free-play hints work out a route on the fly.
-   Two versions of the game: the path world below, and the lessons world (?world=lessons) after it. */
-const WORLD = new URLSearchParams(location.search).get('world') === 'lessons' ? 'lessons' : 'classic';
-const CLASSIC = [
-  { slot: [0, 0], next: 'E', map: ['TRTTRT', 'WW.@.*', 'WT..TT', 'TTRTTR'],
-    pre: [], sol: [[4, 1, 's', 0]] },
-  { slot: [1, 0], next: 'E', map: ['TRWWTT', '@....*', 'TTWW.T', 'RTTTTR'],
-    pre: [[1, 1, 's', 0], [2, 1, 's', 0], [3, 1, 's', 1], [4, 1, 's', 0]],
-    sol: [[1, 1, 's', 0], [2, 1, 's', 0], [3, 1, 's', 0], [4, 1, 's', 0]] },
-  { slot: [2, 0], next: 'S', map: ['TTTRTT', '@.WWT.', 'T.TWW.', 'R*.TRT'],
-    pre: [[1, 2, 's', 1]], sol: [[1, 1, 'c', 0], [1, 2, 's', 1]] },
-  { slot: [2, 1], next: 'S', map: ['T@TTWW', 'T..TWW', 'TB.RTT', 'R*.TTR'],
-    pre: [[1, 1, 's', 1]],
-    sol: [[1, 1, 'c', 2], [2, 1, 'c', 0], [2, 2, 's', 1], [2, 3, 'c', 1]] },
-  { slot: [2, 2], next: 'W', map: ['T@TRTT', 'W.WTTR', 'TC.WWT', '*.RTTT'],
-    pre: [], sol: [[1, 1, 's', 1], [1, 2, 's', 1], [1, 3, 'c', 1]] },
-  { slot: [1, 2], next: 'N', map: ['TT*TRT', 'TW.WTT', 'TW.TRW', 'RR.PS@'],
-    pre: [], sol: [[3, 3, 'p', 0]] },
-  // Free play: every jump pays. A safe route with no coins, a quick spring over a rock with coins
-  // behind it, and a long way round past a plain bat. Each has one spring stone to tap, to spend or save.
-  // In section 8 the stone sits right before the bat, so she can turn on it and jump; a saved spring opens both jumps.
-  // The finale has none: a saved spring opens the pouch bat, two open the rock and the bat.
-  { slot: [1, 1], next: 'W', map: ['..CCB.', '*..TT.', 'CT.WTC', 'CR@S..'], pre: [], sol: [] },
-  { slot: [0, 1], next: 'S', map: ['CCCBST', '.TT..@', '.WT.TC', '..*.RC'], pre: [], sol: [] },
-  { slot: [0, 2], next: null, map: ['..@.CC', '.TPTTR', '.T.CBC', '..*TT.'], pre: [], sol: [] },
-];
-/* Lessons world: 12 sections on a 4×3 map, a lesson in every third one.
+   free-play hints work out a route on the fly. */
+/* 13 sections, a lesson in every third one after the opening. The map is 4×3 with one more
+   section at the top left, so the top row is five wide.
    Extra keys: G a bridge on a stepping stone (b goes on a pond and is crossed straight through)
    s / g  a spring or bridge stone that fills only once the section's lesson is done
    L a lesson stone. Where there is one, the star sleeps until the lesson is done.
    Straights, corners and springs are already known. It eases in one new thing at a time:
-   1 the swipe, on a road that's already built   2 the bridge   3 a first, gentle lesson with coin spurs to swipe down
-   4–5 a spring stone to fetch, then a bat to spend it on   6 a lesson whose spring only fills once it's done, and so on. */
-const LESSON_WORLD = [
-  { slot: [0, 0], next: 'E', map: ['TRTTRT', '@C.TTW', 'TTC.C*', 'RTRWTR'],
+   1 drag one piece into the gap, then tap the star   2 turn a crooked piece, then swipe along the built road
+   3 the bridge, on a road laid up to the pond   4 a first, gentle lesson with coin spurs to swipe down
+   5–6 a spring stone to fetch, then a bat to spend it on   7 a lesson whose spring only fills once it's done, and so on. */
+const SECTIONS = [
+  { slot: [0, 0], next: 'E', map: ['TRTTRT', 'RTT@C*', 'TWTRTT', 'RTTWRT'], pre: [], sol: [[4, 1, 's', 0]] },
+  { slot: [1, 0], next: 'E', map: ['TRTTRT', '@C.TTW', 'TTC.C*', 'RTRWTR'],
     pre: [[1, 1, 's', 0], [2, 1, 'c', 0], [2, 2, 'c', 2], [3, 2, 's', 1], [4, 2, 's', 0]], sol: [[3, 2, 's', 0]] },
-  { slot: [1, 0], next: 'E', map: ['TRTWTT', 'TTRWRT', '@G.WC*', 'RTTWTR'],
-    pre: [], sol: [[2, 2, 's', 0], [3, 2, 'b', 0], [4, 2, 's', 0]] },
-  { slot: [2, 0], next: 'E', map: ['TRTCTW', 'T...RT', '@.TL.*', 'RCTTRW'], pre: [], sol: [[1, 2, 'c', 1]] },
-  { slot: [3, 0], next: 'S', map: ['RCC.TT', 'T.T.ST', '@.W..R', 'TTTR*T'], pre: [], sol: [] },
-  { slot: [3, 1], next: 'W', map: ['RTTT@T', 'TCB..R', '*CTT.T', 'R....W'], pre: [], sol: [] },
-  { slot: [2, 1], next: 'W', map: ['TTCLTT', '*Rs.TR', 'TW...@', 'RWTCTT'], pre: [], sol: [] },
-  { slot: [1, 1], next: 'W', map: ['TTRTST', 'C.P..@', '*RT.TT', '...C.T'], pre: [], sol: [] },
-  { slot: [0, 1], next: 'S', map: ['TCW.GT', 'R.W..T', 'T.WT.@', 'R*WC.T'], pre: [], sol: [] },
-  { slot: [0, 2], next: 'E', map: ['T@G.TT', 'CW.TTW', 'LW.sR*', 'TTC.TW'], pre: [], sol: [] },
-  { slot: [1, 2], next: 'E', map: ['TCCB.T', 'TSTT.R', '@.R..*', 'T...TT'], pre: [], sol: [] },
-  { slot: [2, 2], next: 'E', map: ['CCTSTT', 'GW..P.', '@.TW.*', 'T..C.T'], pre: [], sol: [] },
-  { slot: [3, 2], next: null, map: ['T.L.TC', 'T.TgWC', '@.R.TR', 'RCTsW*'], pre: [], sol: [] },
+  { slot: [2, 0], next: 'E', map: ['TRTWTT', 'TTRWRT', '@G.WC*', 'RTTWTR'],
+    pre: [[2, 2, 's', 0], [4, 2, 's', 0]], sol: [[2, 2, 's', 0], [3, 2, 'b', 0], [4, 2, 's', 0]] },
+  { slot: [3, 0], next: 'E', map: ['TRTCTW', 'T...RT', '@.TL.*', 'RCTTRW'], pre: [], sol: [[1, 2, 'c', 1]] },
+  { slot: [4, 0], next: 'S', map: ['RCC.TT', 'T.T.ST', '@.W..R', 'TTTR*T'], pre: [], sol: [] },
+  { slot: [4, 1], next: 'W', map: ['RTTT@T', 'TCB..R', '*CTT.T', 'R....W'], pre: [], sol: [] },
+  { slot: [3, 1], next: 'W', map: ['TTCLTT', '*Rs.TR', 'TW...@', 'RWTCTT'], pre: [], sol: [] },
+  { slot: [2, 1], next: 'W', map: ['TTRTST', 'C.P..@', '*RT.TT', '...C.T'], pre: [], sol: [] },
+  { slot: [1, 1], next: 'S', map: ['TCW.GT', 'R.W..T', 'T.WT.@', 'R*WC.T'], pre: [], sol: [] },
+  { slot: [1, 2], next: 'E', map: ['T@G.TT', 'CW.TTW', 'LW.sR*', 'TTC.TW'], pre: [], sol: [] },
+  { slot: [2, 2], next: 'E', map: ['TCCB.T', 'TSTT.R', '@.R..*', 'T...TT'], pre: [], sol: [] },
+  { slot: [3, 2], next: 'E', map: ['CCTSTT', 'GW..P.', '@.TW.*', 'T..C.T'], pre: [], sol: [] },
+  { slot: [4, 2], next: null, map: ['T.L.TC', 'T.TgWC', '@.R.TR', 'RCTsW*'], pre: [], sol: [] },
 ];
-const SECTIONS = WORLD === 'lessons' ? LESSON_WORLD : CLASSIC;
 const SW = 6, SH = 4, M = 0.35;            // section size, peek margin (in cells)
 const STEP = 260;                          // ms per walked square
 const BAT_COST = 40;
 const DV = [[0, -1], [1, 0], [0, 1], [-1, 0]];   // N E S W
 const DIRI = { N: 0, E: 1, S: 2, W: 3 };
 const BASE = { s: [1, 3], c: [2, 3], p: [1, 3], b: [1, 3] };
-const SPRING_SEC = WORLD === 'classic' ? 5 : -1;   // section where the spring is taught
-const CORNER_SEC = WORLD === 'classic' ? 2 : -1;
-const SWIPE_SEC = WORLD === 'lessons' ? 0 : -1;
-const BRIDGE_SEC = WORLD === 'lessons' ? 1 : -1;
+const DRAG_SEC = 0, SWIPE_SEC = 1, BRIDGE_SEC = 2;   // sections where each move is taught
+const LAY_SEC = 3;                                   // the first corner she lays herself
 const K = (x, y) => x + ',' + y;
 const P = k => k.split(',').map(Number);
 const conns = (type, r) => BASE[type].map(d => (d + r) % 4);
@@ -628,9 +582,8 @@ let cpx = 140;    // cell size in px
 function freshState() {
   const tiles = {};
   SEC.forEach(s => s.preW.forEach(([x, y, t, r]) => tiles[K(x, y)] = { type: t, turns: r }));
-  const known = WORLD === 'lessons';           // the lessons world starts with corners and springs already learned
   return { sec: 0, tiles, taken: [], flown: [], picked: [], bag: 0, bridges: 0, learned: [], score: 0, char: [...SEC[0].startW], shown: [],
-    oops: false, cornerUnlocked: known, springUnlocked: known, bridgeUnlocked: false, swiped: false, fails: 0, clock: 0 };   // clock: when each piece was last built or turned
+    oops: false, bridgeUnlocked: false, swiped: false, fails: 0, clock: 0 };   // clock: when each piece was last built or turned
 }
 
 /* ================= dom refs ================= */
@@ -661,20 +614,9 @@ const SPRING_ICON = `<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="16" 
 const BRIDGE_ICON = `<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="16" y="22" width="68" height="56" rx="15" fill="#F2C48C" stroke="#8A5A3B" stroke-width="5"/>
   <path d="M33 30v40M50 30v40M67 30v40" stroke="#8A5A3B" stroke-width="5" stroke-linecap="round"/><path d="M24 40h52M24 60h52" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/></svg>`;
 const ICON = { p: SPRING_ICON, b: BRIDGE_ICON };
-// Lesson friends take turns: the bird, then the rain cloud. A character comes as a round portrait;
-// an object is drawn free and a little larger.
-const cloudSVG = happy => `<svg viewBox="0 0 100 100" aria-hidden="true">
-  <g fill="#B9C6DA"><circle cx="33" cy="53" r="20"/><circle cx="54" cy="43" r="24"/><circle cx="73" cy="56" r="17"/><rect x="22" y="52" width="60" height="25" rx="12"/></g>
-  <g fill="#F2F6FC"><circle cx="33" cy="53" r="17"/><circle cx="54" cy="43" r="21"/><circle cx="73" cy="56" r="14"/><rect x="25" y="52" width="55" height="21" rx="10"/></g>
-  <circle cx="45" cy="55" r="3.6" fill="#2A2148"/><circle cx="61" cy="55" r="3.6" fill="#2A2148"/>
-  ${happy ? `<circle cx="39" cy="63" r="4" fill="#FF8AD8" opacity=".6"/><circle cx="67" cy="63" r="4" fill="#FF8AD8" opacity=".6"/>
-    <path d="M47 62q6 6 12 0" stroke="#2A2148" stroke-width="3" stroke-linecap="round" fill="none"/>`
-  : `<path d="M47 66q6-5 12 0" stroke="#2A2148" stroke-width="3" stroke-linecap="round" fill="none"/>
-    <g fill="#74C9EA"><path d="M36 82q3 5 0 8-3-3 0-8z"/><path d="M53 86q3 5 0 8-3-3 0-8z"/><path d="M68 81q3 5 0 8-3-3 0-8z"/></g>`}</svg>`;
-const FRIENDS = [
-  { kind: 'person', art: () => '<img src="assets/Friend.svg" alt="">' },
-  { kind: 'object', art: happy => cloudSVG(happy) },
-];
+// Lesson friends, one for each lesson, in order. A character comes as a round portrait;
+// an object (kind 'object') would be drawn free and a little larger.
+const FRIENDS = [1, 2, 3, 4].map(n => ({ kind: 'person', art: () => `<img src="assets/Friend${n}.svg" alt="">` }));
 const friend = n => FRIENDS[n % FRIENDS.length];
 const lessonHTML = (n, done) => `<i class="beam"></i><i class="mote"></i><i class="mote"></i><i class="mote"></i><i class="lstone"></i><i class="lshadow"></i>
   <div class="lart ${friend(n).kind}"><div>${friend(n).art(done)}</div></div>`;
@@ -746,7 +688,7 @@ function buildWorld() {
     });
   });
   Object.keys(S.tiles).forEach(k => renderTile(k));
-  els.char = mk('', ...S.char, '<div class="bob"><img src="assets/Character.svg" alt=""></div>');
+  els.char = mk('', ...S.char, '<div class="bob"><img src="assets/Player.svg" alt=""></div>');
   els.char.id = 'char';
   perchLesson(); refreshTargets();
 }
@@ -792,7 +734,7 @@ function bob(cls = 'hop') { const b = els.char.firstChild; b.classList.remove('h
 /* ================= layout ================= */
 function layout() {
   const W = stage.clientWidth, H = stage.clientHeight, top = 104;
-  const land = Math.min((W - 40) / 8.4, (H - top - 22) / 4.9);    // 4.7 cells of board plus the star row hanging below it
+  const land = Math.min((W - 40) / 8.4, (H - top - 22) / 4.9);    // 4.7 cells of board plus the progress row hanging below it
   const port = Math.min((W - 10) / 6.7, (H - top - 40) / 6.3);
   const isLand = land >= port;
   cpx = Math.floor(Math.max(60, Math.min(isLand ? land : port, 175)));
@@ -809,7 +751,7 @@ function layout() {
     Object.assign(tray.style, { left: left + bw + 24 + 'px', top: by + 'px', width: tw + 'px', height: bh + 'px' });
     tray.classList.add('col');
   } else {
-    const th = 1.5 * cpx, gap = 24 + .2 * cpx, total = bh + gap + th, by = top + Math.max(0, (H - top - total) / 2), left = (W - bw) / 2;   // room for the star row
+    const th = 1.5 * cpx, gap = 24 + .2 * cpx, total = bh + gap + th, by = top + Math.max(0, (H - top - total) / 2), left = (W - bw) / 2;   // room for the progress row
     Object.assign(board.style, { left: left + 'px', top: by + 'px' });
     Object.assign(tray.style, { left: (W - 4.6 * cpx) / 2 + 'px', top: by + bh + gap + 'px', width: 4.6 * cpx + 'px', height: th + 'px' });
     tray.classList.remove('col');
@@ -1126,15 +1068,9 @@ function collectSpring(k) {
     f.remove(); paintCount(); slot.classList.remove('unlock'); void slot.offsetWidth; slot.classList.add('unlock');
   };
 }
+// The progress row: one friend per lesson. Done ones in full colour, the next one pulsing.
 function paintStars() {
   const row = $('#stars');
-  if (LESSON_AT.size) return paintLessons(row);
-  if (!row.children.length) SEC.forEach(() => { const i = document.createElement('img'); i.src = 'assets/Star.svg'; i.alt = ''; row.append(i); });
-  [...row.children].forEach((img, i) => { img.classList.toggle('done', i < S.sec); img.classList.toggle('now', i === S.sec); });
-  row.setAttribute('aria-label', `${S.sec} of ${SEC.length} stars`);
-}
-// Lessons world: one friend per lesson. Done ones in full colour, the next one pulsing.
-function paintLessons(row) {
   const keys = [...LESSON_AT.keys()];
   if (!row.children.length) keys.forEach((k, n) => { const d = document.createElement('div'); d.className = 'li'; d.innerHTML = friend(n).art(false); row.append(d); });
   const next = keys.findIndex(k => !S.learned.includes(k));
@@ -1159,18 +1095,6 @@ function flyLesson(n, [x, y]) {
     slot.addEventListener('animationend', () => slot.classList.remove('pop'), { once: true });
   };
 }
-function flyStar([x, y], i) {
-  const slot = $('#stars').children[i], r = slot.getBoundingClientRect(), tx = r.left + r.width / 2, ty = r.top + r.height / 2;
-  const f = document.createElement('img'); f.src = 'assets/Star.svg'; f.className = 'flycoin'; fx.append(f);
-  f.animate([
-    { transform: `translate(${x}px, ${y}px) scale(1.6)` },
-    { transform: `translate(${(x + tx) / 2}px, ${Math.max(60, Math.min(y, ty) - 70)}px) scale(1.8) rotate(180deg)`, offset: .45 },
-    { transform: `translate(${tx}px, ${ty}px) scale(.65) rotate(360deg)` },
-  ], { duration: 850, easing: 'ease-in-out' }).onfinish = () => {
-    f.remove(); slot.classList.remove('now'); slot.classList.add('done', 'pop'); Snd.coin();
-    slot.addEventListener('animationend', () => slot.classList.remove('pop'), { once: true });
-  };
-}
 function flyCoin(x, y, delay = 0) {
   const n = ++S.score;
   if (coinsEl.hidden) { coinsEl.hidden = false; coinN.textContent = n - 1; }
@@ -1188,7 +1112,6 @@ async function win() {
   busy = true; edge.hidden = true; cancelHint();
   Snd.fanfare(); star.classList.add('won'); bob('jump'); confetti(star);
   const from = cellCenter(...s.starW);
-  if (!LESSON_AT.size) setTimeout(() => flyStar(from, s.i), 350);   // a copy flies up into the star row
   await sleep(1500);
   const flag = mk('item flag', ...s.starW, FLAG); star.remove(); els.stars[S.sec] = flag;
   if (S.sec === SEC.length - 1) return showEnd();
@@ -1204,8 +1127,6 @@ async function win() {
   Snd.ping(); refreshTargets(); paintStars();
   await sleep(1000);
   if (pointSpring()) await sleep(900);                     // then, smaller, the spring or bridge waiting on its stone
-  if (S.sec === CORNER_SEC && !S.cornerUnlocked) { S.cornerUnlocked = true; await unlockPiece('c'); }
-  if (S.sec === SPRING_SEC && !S.springUnlocked) { S.springUnlocked = true; await unlockPiece('p'); }
   if (S.sec === BRIDGE_SEC && !S.bridgeUnlocked) { S.bridgeUnlocked = true; await unlockPiece('b'); pointSpring('b'); await sleep(700); }
   busy = false; placeEdge(); changed();
 }
@@ -1338,7 +1259,6 @@ document.addEventListener('pointerdown', e => {
   if (hintActive) cancelHint();
   const el = e.target.closest('[data-act]') || (board.contains(e.target) ? board : null); if (!el) return;
   const act = el.dataset.act;
-  if (act === 'world') { if (el.dataset.world !== WORLD) location.search = el.dataset.world === 'lessons' ? '?world=lessons' : ''; return; }
   if (act === 'play') return startGame();
   if (act === 'again') return restart();
   if (act === 'lessondone') { const r = lessonDone; lessonDone = null; r && r(); return; }
@@ -1352,8 +1272,8 @@ document.addEventListener('pointerdown', e => {
     }
     return startDrag(e, { type: el.dataset.piece, turns: 0 }, null);
   }
-  // Lessons world: a press on her own square can become a swipe. A plain tap there still turns the piece under her.
-  const onChar = WORLD === 'lessons' && board.contains(e.target) && K(...clientToCell(e.clientX, e.clientY)) === K(...S.char);
+  // A press on her own square can become a swipe. A plain tap there still turns the piece under her.
+  const onChar = board.contains(e.target) && K(...clientToCell(e.clientX, e.clientY)) === K(...S.char);
   if (act === 'tile') {
     const [x, y] = P(el.dataset.key); if (!inSec(x, y)) return;
     if (S.tiles[el.dataset.key].spent && !onChar) { Snd.no(); el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); return; }
@@ -1402,35 +1322,22 @@ window.addEventListener('resize', layout);
 
 /* ================= hints (ghost hand) ================= */
 // Lessons: each new skill is shown once, the first time it's needed.
-const LESSONS = WORLD === 'lessons' ? {
-  // Tap the bridge on its stone to go and get it, drag the first piece of road out to the pond, then lay the bridge on it.
+const LESSONS = {
+  // Drag the one missing piece into the gap, then tap the star.
+  [DRAG_SEC]: [{ id: 'drag', done: () => solOK(SEC[DRAG_SEC].solW[0]), act: () => hintForSol(SEC[DRAG_SEC].solW[0]) },
+    { id: 'tap', when: () => solOK(SEC[DRAG_SEC].solW[0]), done: () => false, act: () => ({ kind: 'tap', cell: SEC[DRAG_SEC].starW }) }],
+  // The road is laid up to the pond: tap the bridge on its stone to go and get it, then lay it on the pond.
   [BRIDGE_SEC]: [
     { id: 'fetchb', when: () => S.bridgeUnlocked, done: () => S.picked.includes(K(...SEC[BRIDGE_SEC].pickupsW[0])),
       act: () => ({ kind: 'tap', cell: SEC[BRIDGE_SEC].pickupsW[0] }) },
-    { id: 'drag', when: () => S.picked.includes(K(...SEC[BRIDGE_SEC].pickupsW[0])), done: () => solOK(SEC[BRIDGE_SEC].solW[0]),
-      act: () => hintForSol(SEC[BRIDGE_SEC].solW[0]) },
     { id: 'bridge', when: () => S.bridges > 0, done: () => solOK(SEC[BRIDGE_SEC].solW[1]),
       act: () => hintForSol(SEC[BRIDGE_SEC].solW[1]) }],
   // One piece of the road is turned the wrong way: tap it to turn it. Then the hand swipes from her along the road.
   [SWIPE_SEC]: [{ id: 'turn', done: () => solOK(SEC[SWIPE_SEC].solW[0]), act: () => ({ kind: 'rotate', cell: SEC[SWIPE_SEC].solW[0] }) },
     { id: 'swipe', when: () => solOK(SEC[SWIPE_SEC].solW[0]) && !!swipeHint(), done: () => S.swiped, act: () => swipeHint() }],
   // The first turn she lays: drag it out of the tray next to her, then tap it round until it points up through the gap in the trees.
-  2: [{ id: 'drag', done: () => !!S.tiles[K(...SEC[2].solW[0])], act: () => hintForSol(SEC[2].solW[0]) },
-      { id: 'turnc', when: () => !!S.tiles[K(...SEC[2].solW[0])], done: () => solOK(SEC[2].solW[0]), act: () => hintForSol(SEC[2].solW[0]) }],
-} : {
-  0: [{ id: 'drag', done: () => solOK(SEC[0].solW[0]), act: () => hintForSol(SEC[0].solW[0]) },
-      { id: 'tap', when: () => solOK(SEC[0].solW[0]), done: () => false, act: () => ({ kind: 'tap', cell: SEC[0].starW }) }],
-  1: [{ id: 'rotate', done: () => solOK(SEC[1].solW[2]), act: () => ({ kind: 'rotate', cell: SEC[1].solW[2] }) }],
-  2: [{ id: 'corner', when: () => S.cornerUnlocked, done: () => solOK(SEC[2].solW[0]), act: () => hintForSol(SEC[2].solW[0]) }],
-  // The one piece already here runs straight at the bat: drag it away and go around.
-  3: [{ id: 'remove', done: () => { const k = K(...SEC[3].preW[0]); return !S.tiles[k] || k === K(...S.char) || solOK(SEC[3].solW[0]); },
-        act: () => ({ kind: 'remove', cell: SEC[3].preW[0].slice(0, 2) }) }],
-  // Tap the spring on its stone to go and get it, then drop it on the pouch bat.
-  [SPRING_SEC]: [
-    { id: 'fetch', when: () => S.springUnlocked, done: () => S.picked.includes(K(...SEC[SPRING_SEC].pickupsW[0])),
-      act: () => ({ kind: 'tap', cell: SEC[SPRING_SEC].pickupsW[0] }) },
-    { id: 'spring', when: () => S.bag > 0, done: () => solOK(SEC[SPRING_SEC].solW[0]) || S.flown.length > 0,
-      act: () => hintForSol(SEC[SPRING_SEC].solW[0]) }],
+  [LAY_SEC]: [{ id: 'drag', done: () => !!S.tiles[K(...SEC[LAY_SEC].solW[0])], act: () => hintForSol(SEC[LAY_SEC].solW[0]) },
+    { id: 'turnc', when: () => !!S.tiles[K(...SEC[LAY_SEC].solW[0])], done: () => solOK(SEC[LAY_SEC].solW[0]), act: () => hintForSol(SEC[LAY_SEC].solW[0]) }],
 };
 function pendingLesson() {
   return (LESSONS[S.sec] || []).find(l => !S.shown.includes(S.sec + l.id) && (!l.when || l.when()) && !l.done());
@@ -1597,7 +1504,7 @@ setInterval(() => {
   const now = performance.now();
   const l = pendingLesson();
   if (l && now - lastChange > 700 && now - lastAct > 700) { S.shown.push(S.sec + l.id); showHint(l.act()); lastAct = now; return; }
-  const idle = S.sec <= (WORLD === 'lessons' ? 2 : SPRING_SEC) ? 6000 : 10000;   // quicker help in the teaching sections
+  const idle = S.sec <= LAY_SEC ? 6000 : 10000;   // quicker help in the teaching sections
   if (now - Math.max(lastAct, lastChange) > idle) { lastAct = now; showHint(computeHint()); }
 }, 300);
 
@@ -1607,15 +1514,12 @@ function paintTray() {
     const keep = [...sl.querySelectorAll('.lock, .count')];
     sl.innerHTML = `<div class="rot">${roadSVG(sl.dataset.piece)}</div>`;
     sl.append(...keep);
-    if (sl.dataset.piece === 'c') sl.classList.toggle('locked', !S.cornerUnlocked);
-    if (sl.dataset.piece === 'p') sl.classList.toggle('locked', !S.springUnlocked);
-    if (sl.dataset.piece === 'b') { sl.hidden = BRIDGE_SEC < 0; sl.classList.toggle('locked', !S.bridgeUnlocked); }
+    if (sl.dataset.piece === 'b') sl.classList.toggle('locked', !S.bridgeUnlocked);
   });
-  tray.classList.toggle('four', BRIDGE_SEC >= 0);
   paintCount();
 }
 function paintCount() {
-  [['p', S.springUnlocked], ['b', S.bridgeUnlocked]].forEach(([type, open]) => {
+  [['p', true], ['b', S.bridgeUnlocked]].forEach(([type, open]) => {
     const sl = tray.querySelector(`[data-piece="${type}"]`), n = Math.max(0, held(type));
     sl.querySelector('.count').textContent = '×' + n;
     sl.classList.toggle('empty', open && n === 0);
@@ -1623,11 +1527,7 @@ function paintCount() {
 }
 function boot(data) {
   S = data && data.tiles ? { ...freshState(), ...data } : freshState();
-  if (S.sec > CORNER_SEC && CORNER_SEC >= 0) S.cornerUnlocked = true;
-  if (S.sec > SPRING_SEC && SPRING_SEC >= 0) S.springUnlocked = true;
-  if (S.sec > BRIDGE_SEC && BRIDGE_SEC >= 0) S.bridgeUnlocked = true;
-  document.querySelectorAll('#worlds button').forEach(b => b.setAttribute('aria-pressed', b.dataset.world === WORLD));
-  if (WORLD === 'lessons') $('#tagline').textContent = 'Explore the path and meet friends on the way!';
+  if (S.sec > BRIDGE_SEC) S.bridgeUnlocked = true;
   $('#stars').innerHTML = '';
   buildWorld(); paintTray(); paintStars(); layout();
   coinsEl.hidden = S.score === 0; coinN.textContent = S.score;
