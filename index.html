@@ -156,8 +156,13 @@ img { -webkit-user-drag: none; pointer-events: none; }
 .flyspring { position: absolute; left: 0; top: 0; width: 64px; height: 64px; margin: -32px 0 0 -32px; }
 .bat .bb { position: relative; width: calc(var(--c) * .8); height: calc(var(--c) * .8); transition: scale .25s, translate .25s; }
 .bat .bb img { width: 100%; height: 100%; }
-.bat .pouch { position: absolute; right: -6%; bottom: -2%; width: 46%; }
-.bat .pouch svg { width: 100%; display: block; }
+/* A pouch bat's pouch: a coin peeks out of the top, a slow golden glow swells and fades, and now and then a glint flashes on it. */
+.bat .pouch { position: absolute; right: -18%; bottom: -8%; width: 62%; isolation: isolate; }
+.bat .pouch::before { content: ""; position: absolute; inset: -30% -30% -24% -24%; z-index: -1; border-radius: 50%;
+  background: radial-gradient(circle, #FFE36AE6 0%, #FFE36A80 38%, #FFE36A00 68%); animation: halo 2.2s ease-in-out infinite; }
+.bat .pouch svg { width: 100%; display: block; animation: pouchglow 2.2s ease-in-out infinite; }
+.bat .pouch .glint { position: absolute; right: -16%; top: -10%; width: 40%; scale: 0; animation: glint 3.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 2px #FFFFFF); }
 .bat.wobble .bb { animation: wobble .5s ease-in-out 2; }
 .bat.perch .bb, .deco.perch svg { scale: .64; translate: 0 -24%; }
 .deco svg { transition: scale .25s, translate .25s; }
@@ -360,6 +365,9 @@ img { -webkit-user-drag: none; pointer-events: none; }
   88% { transform: translateY(0) scale(1.08, .9); }
   94% { transform: translateY(-6%) scale(1, 1); }
 }
+@keyframes halo { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.05); } }
+@keyframes pouchglow { 0%, 100% { filter: drop-shadow(0 0 2px #FFD84D99); } 50% { filter: drop-shadow(0 0 9px #FFD84D) drop-shadow(0 0 3px #FFF3B0); } }
+@keyframes glint { 0%, 70%, 100% { scale: 0; rotate: 0deg; } 80% { scale: 1; rotate: 45deg; } 90% { scale: 0; rotate: 90deg; } }
 @keyframes lfloat { 50% { transform: translateY(-6%); } }
 @keyframes shade { 50% { transform: translate(-50%, -50%) scale(.8); opacity: .7; } }
 @keyframes beam { 50% { opacity: .8; } }
@@ -373,7 +381,8 @@ img { -webkit-user-drag: none; pointer-events: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   #world.panning { transition-duration: .4s; }
-  .coin img, .star img, #edge svg, .hero img, .pickup .pk, .lesson .beam, .lesson .mote, .lesson .lart > div, .lessoncard .lart { animation: none !important; }
+  .coin img, .star img, #edge svg, .hero img, .pickup .pk, .lesson .beam, .lesson .mote, .lesson .lart > div, .lessoncard .lart, .bat .pouch svg, .bat .pouch .glint, .bat .pouch::before { animation: none !important; }
+  .bat .pouch svg { filter: drop-shadow(0 0 6px #FFD84D); }
 }
 </style>
 
@@ -436,7 +445,8 @@ img { -webkit-user-drag: none; pointer-events: none; }
    Straights, corners and springs are already known. It eases in one new thing at a time:
    1 drag one piece into the gap, then tap the star   2 turn a crooked piece, then swipe along the built road
    3 the bridge, on a road laid up to the pond   4 a first, gentle lesson with coin spurs to swipe down
-   5–6 a spring stone to fetch, then a bat to spend it on   7 a lesson whose spring only fills once it's done, and so on. */
+   5 a spring stone to fetch and keep   6 the spring lesson: fetch one, drop it on the first pouch bat
+   7 a lesson whose spring only fills once it's done, and so on. */
 const SECTIONS = [
   { slot: [0, 0], next: 'E', map: ['TRTTRT', 'RTT@C*', 'TWTRTT', 'RTTWRT'], pre: [], sol: [[4, 1, 's', 0]] },
   { slot: [1, 0], next: 'E', map: ['TRTTRT', '@C.TTW', 'TTC.C*', 'RTRWTR'],
@@ -445,7 +455,7 @@ const SECTIONS = [
     pre: [[2, 2, 's', 0], [4, 2, 's', 0]], sol: [[2, 2, 's', 0], [3, 2, 'b', 0], [4, 2, 's', 0]] },
   { slot: [3, 0], next: 'E', map: ['TRTCTW', 'T...RT', '@.TL.*', 'RCTTRW'], pre: [], sol: [[1, 2, 'c', 1]] },
   { slot: [4, 0], next: 'S', map: ['RCC.TT', 'T.T.ST', '@.W..R', 'TTTR*T'], pre: [], sol: [] },
-  { slot: [4, 1], next: 'W', map: ['RTTT@T', 'TCB..R', '*CTT.T', 'R....W'], pre: [], sol: [] },
+  { slot: [4, 1], next: 'W', map: ['RTTT@T', 'TCP.SR', '*CTT.T', 'R....W'], pre: [], sol: [[2, 1, 'p', 0]] },
   { slot: [3, 1], next: 'W', map: ['TTCLTT', '*Rs.TR', 'TW...@', 'RWTCTT'], pre: [], sol: [] },
   { slot: [2, 1], next: 'W', map: ['TTRTST', 'C.P..@', '*RT.TT', '...C.T'], pre: [], sol: [] },
   { slot: [1, 1], next: 'S', map: ['TCW.GT', 'R.W..T', 'T.WT.@', 'R*WC.T'], pre: [], sol: [] },
@@ -462,6 +472,7 @@ const DIRI = { N: 0, E: 1, S: 2, W: 3 };
 const BASE = { s: [1, 3], c: [2, 3], p: [1, 3], b: [1, 3] };
 const DRAG_SEC = 0, SWIPE_SEC = 1, BRIDGE_SEC = 2;   // sections where each move is taught
 const LAY_SEC = 3;                                   // the first corner she lays herself
+const SPRING_SEC = 5;                                // the first pouch bat, and the hand shows the spring on it
 const K = (x, y) => x + ',' + y;
 const P = k => k.split(',').map(Number);
 const conns = (type, r) => BASE[type].map(d => (d + r) % 4);
@@ -606,9 +617,13 @@ function roadSVG(type) {
     <path class="re" d="${d}" stroke-width="56"/><path class="rf" d="${d}" stroke-width="42"/>
     <path class="rd" d="${d}" stroke-width="5" stroke-dasharray="9 11" stroke-linecap="round"/>${board}</svg>`;
 }
-const POUCH_SVG = `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M14 13C6 18 5 36 20 36s14-18 6-23z" fill="#C98A4B" stroke="#7A4A2B" stroke-width="2.5" stroke-linejoin="round"/>
-  <path d="M13 12c4 2 10 2 14 0" stroke="#7A4A2B" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M16 9l4 3 4-3" stroke="#7A4A2B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <circle cx="20" cy="26" r="6.5" fill="#FFC200" stroke="#FFB000" stroke-width="2"/></svg>`;
+// The pouch, with a gold coin peeking out of its open top, and the glint that flashes on it.
+const POUCH_SVG = `<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="9" r="7.5" fill="#FFC200" stroke="#E59A00" stroke-width="2"/>
+  <circle cx="20" cy="9" r="4" fill="none" stroke="#FFE27A" stroke-width="2"/>
+  <path d="M14 13C6 18 5 36 20 36s14-18 6-23z" fill="#C98A4B" stroke="#7A4A2B" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M13 12.5c4 2 10 2 14 0" stroke="#7A4A2B" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M12 24c1-4 3-7 5-8" stroke="#E2AE77" stroke-width="2.5" stroke-linecap="round" fill="none"/></svg>`;
+const GLINT_SVG = `<svg class="glint" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 0l2.4 7.6L20 10l-7.6 2.4L10 20l-2.4-7.6L0 10l7.6-2.4z" fill="#FFFFFF" stroke="#F2A900" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
 const SPRING_ICON = `<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="16" y="22" width="68" height="56" rx="15" fill="#FF8AD8" stroke="#C2399C" stroke-width="5"/>
   <path d="M24 50l8-14 8 28 8-28 8 28 8-28 8 28 4-14" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 const BRIDGE_ICON = `<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="16" y="22" width="68" height="56" rx="15" fill="#F2C48C" stroke="#8A5A3B" stroke-width="5"/>
@@ -620,7 +635,7 @@ const FRIENDS = [1, 2, 3, 4].map(n => ({ kind: 'person', art: () => `<img src="a
 const friend = n => FRIENDS[n % FRIENDS.length];
 const lessonHTML = (n, done) => `<i class="beam"></i><i class="mote"></i><i class="mote"></i><i class="mote"></i><i class="lstone"></i><i class="lshadow"></i>
   <div class="lart ${friend(n).kind}"><div>${friend(n).art(done)}</div></div>`;
-const BAT_HTML = k => `<div class="bb"><img src="assets/Bat.svg" alt="">${POUCH.has(k) ? `<span class="pouch">${POUCH_SVG}</span>` : ''}</div>`;
+const BAT_HTML = k => `<div class="bb"><img src="assets/Bat.svg" alt="">${POUCH.has(k) ? `<span class="pouch">${POUCH_SVG}${GLINT_SVG}</span>` : ''}</div>`;
 const FLAG = `<svg viewBox="0 0 80 80" aria-hidden="true"><ellipse cx="34" cy="70" rx="20" ry="6" fill="#2A214833"/>
   <rect x="31" y="10" width="6" height="60" rx="3" fill="#2A2148"/><path d="M37 12c12-5 22 6 36 0v26c-14 6-24-5-36 0z" fill="#FF60CF"/>
   <circle cx="34" cy="9" r="5" fill="#FFC200"/></svg>`;
@@ -1336,6 +1351,12 @@ const LESSONS = {
   [SWIPE_SEC]: [{ id: 'turn', done: () => solOK(SEC[SWIPE_SEC].solW[0]), act: () => ({ kind: 'rotate', cell: SEC[SWIPE_SEC].solW[0] }) },
     { id: 'swipe', when: () => solOK(SEC[SWIPE_SEC].solW[0]) && !!swipeHint(), done: () => S.swiped, act: () => swipeHint() }],
   // The first turn she lays: drag it out of the tray next to her, then tap it round until it points up through the gap in the trees.
+  // Tap the spring on its stone to go and get it (unless one is already in hand), then drop it on the pouch bat.
+  [SPRING_SEC]: [
+    { id: 'fetch', when: () => S.bag === 0 && !solOK(SEC[SPRING_SEC].solW[0]), done: () => S.picked.includes(K(...SEC[SPRING_SEC].pickupsW[0])),
+      act: () => ({ kind: 'tap', cell: SEC[SPRING_SEC].pickupsW[0] }) },
+    { id: 'spring', when: () => S.bag > 0, done: () => solOK(SEC[SPRING_SEC].solW[0]) || S.flown.includes(K(...SEC[SPRING_SEC].pouchesW[0])),
+      act: () => hintForSol(SEC[SPRING_SEC].solW[0]) }],
   [LAY_SEC]: [{ id: 'drag', done: () => !!S.tiles[K(...SEC[LAY_SEC].solW[0])], act: () => hintForSol(SEC[LAY_SEC].solW[0]) },
     { id: 'turnc', when: () => !!S.tiles[K(...SEC[LAY_SEC].solW[0])], done: () => solOK(SEC[LAY_SEC].solW[0]), act: () => hintForSol(SEC[LAY_SEC].solW[0]) }],
 };
@@ -1504,7 +1525,7 @@ setInterval(() => {
   const now = performance.now();
   const l = pendingLesson();
   if (l && now - lastChange > 700 && now - lastAct > 700) { S.shown.push(S.sec + l.id); showHint(l.act()); lastAct = now; return; }
-  const idle = S.sec <= LAY_SEC ? 6000 : 10000;   // quicker help in the teaching sections
+  const idle = S.sec <= LAY_SEC || S.sec === SPRING_SEC ? 6000 : 10000;   // quicker help in the teaching sections
   if (now - Math.max(lastAct, lastChange) > idle) { lastAct = now; showHint(computeHint()); }
 }, 300);
 

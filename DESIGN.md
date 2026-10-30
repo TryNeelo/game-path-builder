@@ -113,6 +113,7 @@ The path tiles and the flag are drawn in code to match the art's style.
 
 **Why use the spring: pouch bats**
 - Some bats hold a little coin pouch, visible before building.
+- **Making the pouch easy to spot (2026-10-30):** the pouch is a little bigger, with a gold coin peeking out of its open top. A soft golden halo behind it slowly swells and fades (about every two seconds), and every few seconds a small star-shaped glint flashes at its corner. It pulses slowly rather than flashing, and only the pouch moves, so the bat still reads as an obstacle. With reduced motion turned on, the halo stays still.
 - Springing over a pouch bat startles it: it drops the pouch (+3 coins burst out) and flies away. Plain bats just fly away when hopped.
 - **Every jump pays.** Rocks and plain bats have coins on the far side, in a lane you can only reach by springing over them. So every spring is a real "do I want those coins enough to spend my jump here?"
 - A spring is **spent** once she bounces on it. It stays on the board as a greyed-out piece that can't be moved or turned. She still bounces over it if she crosses again, but the reward only happens once. Before she uses it, the child can still move it or take it back.
@@ -202,7 +203,7 @@ The path tiles and the flag are drawn in code to match the art's style.
 | 3 | Bridge only: the road is laid up to the pond and on past it. Fetch the bridge from the stone next to her, then lay it on the pond |
 | 4 | First lesson (friend 1), kept gentle, and the first turn piece she lays: the hand drags it next to her, then taps it round. A short road to the lesson, then on to the star. Coins sit on short side spurs, worth a swipe |
 | 5 | A long land route with 2 coins that passes a spring stone (keep it), or a bridge shortcut |
-| 6 | A bat with coins behind it: spend the spring, or take the long safe way |
+| 6 | Spring lesson and the first pouch bat. A spring stone sits next to her. The hand taps it (skipped if she already holds a spring), then drops the spring on the pouch bat; she bounces over for +3, with two coins behind it. A long safe way round also exists |
 | 7 | Lesson (friend 2). The spring fills after the lesson, and the only way to the star is a jump over the rock beside it |
 | 8 | Pouch bat (+3), a rock jump, or the safe way round. A spring stone sits just off the start |
 | 9 | A pond column with three crossings. The bridge stone is next to the start |
@@ -211,7 +212,7 @@ The path tiles and the flag are drawn in code to match the art's style.
 | 12 | A safe route, or a bridge to reach a spring stone, then a spring over the pouch bat |
 | 13 | Lesson (friend 4), the finale. A bridge and a spring both fill after the lesson |
 
-- Total coins: 45 (27 on the ground, 2 pouch bats at +3, 4 lessons at +3). One run can't collect them all.
+- Total coins: 48 (27 on the ground, 3 pouch bats at +3, 4 lessons at +3). One run can't collect them all.
 - Every section was checked by playing through the whole world using only the hints.
 - **Live:** the GitHub Pages link shows `main`.
 
